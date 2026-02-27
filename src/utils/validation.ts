@@ -26,3 +26,16 @@ export const RegisterSchema = v.pipe(
 	}),
 	v.check((input) => input.password === input.confirmPassword, 'Passwords do not match.'),
 );
+
+export const ForgotPasswordSchema = v.object({
+	email: EmailSchema,
+});
+
+export const ResetPasswordSchema = v.pipe(
+	v.object({
+		token: v.string(),
+		password: PasswordSchema,
+		confirmPassword: v.string(),
+	}),
+	v.check((input) => input.password === input.confirmPassword, 'Passwords do not match.'),
+);

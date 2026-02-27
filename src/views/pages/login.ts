@@ -31,6 +31,14 @@ export const loginPage = (appId: string, redirect: string, error?: string, succe
 					<input type="password" id="password" name="password" placeholder="••••••••" required />
 				</div>
 
+				<div class="form-group">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+						<label for="password" style="margin-bottom: 0;">Password</label>
+						<a href="/forgot-password" style="font-size: 0.8rem; color: var(--text-muted);">Forgot?</a>
+					</div>
+					<input type="password" id="password" name="password" placeholder="••••••••" required />
+				</div>
+
 				<button type="submit">Sign in to ${appName}</button>
 			</form>
 			<p class="footer-text">Don't have an account? <a href="${registerLink}">Sign up</a></p>

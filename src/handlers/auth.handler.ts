@@ -3,11 +3,14 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import * as v from 'valibot';
 import { AppError } from '../types/errors';
 import { HonoEnv } from '../types/hono-env';
-import { LoginSchema, QuerySchema, RegisterSchema } from '../utils/validation';
+import { ForgotPasswordSchema, LoginSchema, QuerySchema, RegisterSchema, ResetPasswordSchema } from '../utils/validation';
 import { landingPage } from '../views/pages/landing';
 import { loginPage } from '../views/pages/login';
 import { registerPage } from '../views/pages/register';
 import { verifyPendingPage } from '../views/pages/verify-pending';
+import { ContentfulStatusCode } from 'hono/utils/http-status';
+import { forgotPasswordPage } from '../views/pages/forgot-password';
+import { resetPasswordPage } from '../views/pages/reset-password';
 
 function getParams(c: Context) {
 	const parsed = v.safeParse(QuerySchema, {
@@ -85,8 +88,14 @@ export class AuthHandler {
 			await authService.register(result.output.email as string, result.output.password as string, appId);
 			return c.redirect('/verify-pending');
 		} catch (err) {
-			const msg = err instanceof AppError ? err.message : 'Registration failed';
-			const status = err instanceof AppError ? err.status : 500;
+			let status: ContentfulStatusCode = 500;
+			let msg = 'Registration failed';
+
+			if (err instanceof AppError) {
+				msg = err.message;
+				err = err.status;
+			}
+
 			return c.html(registerPage(appId, redirect, msg), status);
 		}
 	}
@@ -122,5 +131,42 @@ export class AuthHandler {
 		}
 
 		return c.redirect(redirect);
+	}
+
+	static async renderForgot(c: Context) {
+		return c.html(forgotPasswordPage());
+	}
+
+	static async handleForgot(c: Context<HonoEnv>) {
+		const formData = await c.req.parseBody();
+		const result = v.safeParse(ForgotPasswordSchema, formData);
+		if (result.success) {
+			await c.get('authService').requestPasswordReset(result.output.email);
+		}
+		return c.html(forgotPasswordPage(undefined, true));
+	}
+
+	static async renderReset(c: Context) {
+		const token = c.req.query('token');
+		if (!token) return c.redirect('/login');
+		return c.html(resetPasswordPage(token));
+	}
+
+	static async handleReset(c: Context<HonoEnv>) {
+		const formData = await c.req.parseBody();
+		const result = v.safeParse(ResetPasswordSchema, formData);
+		const token = (formData.token as string) || '';
+
+		if (!result.success) {
+			return c.html(resetPasswordPage(token, result.issues[0].message), 400);
+		}
+
+		try {
+			await c.get('authService').resetPassword(result.output.token, result.output.password);
+			return c.html(loginPage('sso', '/', undefined, 'Password reset successful! You can now log in.'));
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : 'Reset failed';
+			return c.html(resetPasswordPage(result.output.token, msg), 400);
+		}
 	}
 }

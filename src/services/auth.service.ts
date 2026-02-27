@@ -73,8 +73,19 @@ export class AuthService {
 		// Notice we no longer create a session or return a sessionId here.
 	}
 
+	async requestNewVerification(email: string, appId: string): Promise<void> {
+		const user = await this.userRepo.findByEmailAndApp(email, appId);
+
+		// Security: Don't tell the caller if the user exists or is already verified
+		if (!user || user.email_verified === 1) return;
+
+		const token = crypto.randomUUID();
+		await this.tokenRepo.saveEmailVerificationToken(token, user.id);
+		await this.emailService.sendVerificationEmail(email, token);
+	}
+
 	async verifyEmailToken(token: string): Promise<void> {
-		const userId = await this.tokenRepo.getUserIdFromToken(token);
+		const userId = await this.tokenRepo.getUserIdFromVerifyToken(token);
 		if (!userId) {
 			throw new AppError('Verification link is invalid or has expired.', 400);
 		}
@@ -97,5 +108,31 @@ export class AuthService {
 		}
 
 		return session;
+	}
+
+	async requestPasswordReset(email: string): Promise<void> {
+		// We search across all apps or specifically for SSO
+		// Usually, password reset is a Global (SSO) concern
+		const user = await this.userRepo.findByEmailAndApp(email, 'sso');
+
+		// Security: Always respond with success to prevent email enumeration
+		if (!user) return;
+
+		const token = crypto.randomUUID();
+		await this.tokenRepo.savePasswordResetToken(token, user.id);
+		await this.emailService.sendPasswordResetEmail(email, token);
+	}
+
+	async resetPassword(token: string, newPassword: string): Promise<void> {
+		const userId = await this.tokenRepo.getUserIdFromResetToken(token);
+		if (!userId) {
+			throw new AppError('Reset link is invalid or has expired.', 400);
+		}
+
+		const phash = await hashPassword(newPassword);
+		await this.userRepo.updatePassword(userId, phash);
+		await this.tokenRepo.deleteToken(`reset_pwd:${token}`);
+
+		// Optional: You could also delete all active sessions for this user here
 	}
 }

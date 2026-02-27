@@ -36,4 +36,8 @@ export class UserRepository {
 	async markEmailVerified(userId: string): Promise<void> {
 		await this.db.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').bind(userId).run();
 	}
+
+	async updatePassword(userId: string, phash: string): Promise<void> {
+		await this.db.prepare('UPDATE users SET phash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(phash, userId).run();
+	}
 }
