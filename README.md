@@ -143,7 +143,3 @@ The Auth Worker must enforce the following business rules during **Registration*
 1.  **SSO Priority:** If a record exists with `email = 'user@email.com'` AND `app = 'sso'`, no other app-specific accounts can be created for that email. The user must use their SSO account.
 2.  **App Isolation:** If no `sso` account exists, a user can have multiple records with the same email, provided the `app` value is different (e.g., one record for `geveze` and one for `hodan`).
 3.  **Upgrade Path:** If a user has an app-specific account (e.g., `geveze`) and tries to register for `sso`, the system should prevent this (or handle migration) to ensure the `sso` "Global" rule remains intact.
-
-## YAPMALI
-
-1.

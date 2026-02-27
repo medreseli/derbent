@@ -1,0 +1,27 @@
+import { Context } from 'hono';
+import { getCookie } from 'hono/cookie';
+import { AppError } from '../types/errors';
+import { HonoEnv } from '../types/hono-env';
+
+export class InternalHandler {
+	static async verify(c: Context<HonoEnv>) {
+		const appId = c.req.query('app_id');
+		if (!appId) return c.text('Missing app_id', 400);
+
+		const authService = c.get('authService');
+
+		let sessionId = getCookie(c, `session_${appId}`);
+		// Fallback to SSO cookie if app specific not found
+		if (!sessionId && appId !== 'sso') sessionId = getCookie(c, 'session_sso');
+
+		if (!sessionId) return c.text('Unauthorized', 401);
+
+		try {
+			const session = await authService.verifySession(sessionId, appId);
+			return c.json(session);
+		} catch (err) {
+			const status = err instanceof AppError ? err.status : 500;
+			return c.text(err instanceof Error ? err.message : 'Error', status);
+		}
+	}
+}

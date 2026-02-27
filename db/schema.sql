@@ -2,6 +2,7 @@ CREATE TABLE users (
     id TEXT PRIMARY KEY,                -- UUIDv7 or NanoID
     app TEXT NOT NULL,                  -- 'sso', 'geveze', 'hodan', etc.
     email TEXT NOT NULL,                -- 
+    email_verified BOOLEAN DEFAULT 0,   -- 0 = False, 1 = True
     phash TEXT NOT NULL,                -- Password Hash - PBKDF2 (Web Crypto API)
     metadata TEXT DEFAULT '{}',         -- App-specific JSON data
 
