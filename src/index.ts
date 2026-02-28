@@ -11,6 +11,7 @@ import { EmailService } from './services/email.service';
 import { AuthService } from './services/auth.service';
 import { HonoEnv } from './types/hono-env';
 import { rateLimit } from './middleware/rate-limit';
+import { csrfOnGet, csrfOnPost } from './middleware/csrf';
 
 const app = new Hono<HonoEnv>();
 
@@ -38,25 +39,26 @@ app.onError((err, c) => {
 	return c.html(layout('Internal Error', html`<div class="error">Something went wrong. Please try again later.</div>`), 500);
 });
 
+app.get('/', csrfOnGet(), AuthHandler.index);
+app.get('/login', csrfOnGet(), AuthHandler.renderLogin);
+app.get('/register', csrfOnGet(), AuthHandler.renderRegister);
+
 // Rate Limited Routes
-app.post('/login', rateLimit(), AuthHandler.handleLogin);
-app.post('/register', rateLimit(), AuthHandler.handleRegister);
+app.post('/login', rateLimit(), csrfOnPost(), AuthHandler.handleLogin);
+app.post('/register', rateLimit(), csrfOnPost(), AuthHandler.handleRegister);
+app.post('/logout', rateLimit(), csrfOnPost(), AuthHandler.handleLogout);
 
-app.get('/verify', InternalHandler.verify);
-
-app.get('/', AuthHandler.index);
-app.get('/login', AuthHandler.renderLogin);
-app.get('/register', AuthHandler.renderRegister);
-app.get('/logout', AuthHandler.handleLogout);
+app.get('/internal/verify', InternalHandler.verify);
+app.post('/internal/logout', InternalHandler.logout);
 
 // Email Verification Routes
 app.get('/verify-pending', AuthHandler.renderVerifyPending);
 app.get('/verify-email', AuthHandler.handleVerifyEmail);
 
 // Password Reset Routes
-app.get('/forgot-password', AuthHandler.renderForgot);
-app.post('/forgot-password', AuthHandler.handleForgot);
-app.get('/reset-password', AuthHandler.renderReset);
-app.post('/reset-password', AuthHandler.handleReset);
+app.get('/forgot-password', csrfOnGet(), AuthHandler.renderForgot);
+app.post('/forgot-password', csrfOnPost(), AuthHandler.handleForgot);
+app.get('/reset-password', csrfOnGet(), AuthHandler.renderReset);
+app.post('/reset-password', csrfOnPost(), AuthHandler.handleReset);
 
 export default app;

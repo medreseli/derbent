@@ -1,7 +1,7 @@
 import { html } from 'hono/html';
 import { layout } from '../components/layout';
 
-export const forgotPasswordPage = (error?: string, success?: boolean) => {
+export const forgotPasswordPage = (csrfToken: string, error?: string, success?: boolean) => {
 	const content = success
 		? html`<p class="lead">If an account exists for that email, we've sent reset instructions to your inbox.</p>`
 		: html`
@@ -12,6 +12,7 @@ export const forgotPasswordPage = (error?: string, success?: boolean) => {
 						<label for="email">Email address</label>
 						<input type="email" id="email" name="email" required autofocus />
 					</div>
+					<input type="hidden" name="csrf_token" value="${csrfToken}" />
 					<button type="submit">Send Reset Link</button>
 				</form>
 			`;

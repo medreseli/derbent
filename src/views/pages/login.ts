@@ -1,7 +1,7 @@
 import { html } from 'hono/html';
 import { layout } from '../components/layout';
 
-export const loginPage = (appId: string, redirect: string, error?: string, successMsg?: string) => {
+export const loginPage = (appId: string, redirect: string, csrfToken: string, error?: string, successMsg?: string) => {
 	const errorHtml = error ? html`<div class="error">${error}</div>` : '';
 	const successHtml = successMsg
 		? html`<div class="error" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;">${successMsg}</div>`
@@ -38,6 +38,8 @@ export const loginPage = (appId: string, redirect: string, error?: string, succe
 					</div>
 					<input type="password" id="password" name="password" placeholder="••••••••" required />
 				</div>
+
+				<input type="hidden" name="csrf_token" value="${csrfToken}" />
 
 				<button type="submit">Sign in to ${appName}</button>
 			</form>

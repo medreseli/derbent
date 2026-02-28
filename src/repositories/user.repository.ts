@@ -11,11 +11,11 @@ export class UserRepository {
 		return await this.db
 			.prepare(
 				`
-			SELECT * FROM users 
-			WHERE email = ? AND (app = ? OR app = 'sso') 
-			ORDER BY app = 'sso' DESC 
-			LIMIT 1
-		`,
+					SELECT * FROM users 
+					WHERE email = ? AND (app = ? OR app = 'sso') 
+					ORDER BY app = 'sso' DESC 
+					LIMIT 1
+				`,
 			)
 			.bind(email, app)
 			.first<User>();

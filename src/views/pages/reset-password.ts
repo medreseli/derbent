@@ -1,7 +1,7 @@
 import { html } from 'hono/html';
 import { layout } from '../components/layout';
 
-export const resetPasswordPage = (token: string, error?: string) => {
+export const resetPasswordPage = (token: string, csrfToken: string, error?: string) => {
 	return layout(
 		`Set New Password`,
 		html`
@@ -17,6 +17,9 @@ export const resetPasswordPage = (token: string, error?: string) => {
 					<label for="confirmPassword">Confirm New Password</label>
 					<input type="password" id="confirmPassword" name="confirmPassword" required />
 				</div>
+
+				<input type="hidden" name="csrf_token" value="${csrfToken}" />
+
 				<button type="submit">Reset Password</button>
 			</form>
 		`,

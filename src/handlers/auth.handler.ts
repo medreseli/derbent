@@ -21,22 +21,25 @@ function getParams(c: Context) {
 }
 
 export class AuthHandler {
-	static async index(c: Context) {
+	static async index(c: Context<HonoEnv>) {
 		return c.html(landingPage());
 	}
 
-	static async renderLogin(c: Context) {
+	static async renderLogin(c: Context<HonoEnv>) {
+		const csrfToken = c.get('csrfToken');
 		const { appId, redirect } = getParams(c);
-		return c.html(loginPage(appId, redirect));
+		return c.html(loginPage(appId, redirect, csrfToken));
 	}
 
-	static async renderRegister(c: Context) {
+	static async renderRegister(c: Context<HonoEnv>) {
+		const csrfToken = c.get('csrfToken');
 		const { appId, redirect } = getParams(c);
-		return c.html(registerPage(appId, redirect));
+		return c.html(registerPage(appId, redirect, csrfToken));
 	}
 
-	static async renderVerifyPending(c: Context) {
-		return c.html(verifyPendingPage());
+	static async renderVerifyPending(c: Context<HonoEnv>) {
+		const { appId } = getParams(c);
+		return c.html(verifyPendingPage(appId));
 	}
 
 	static async handleLogin(c: Context<HonoEnv>) {
@@ -65,7 +68,9 @@ export class AuthHandler {
 			return c.redirect(redirect);
 		} catch (err) {
 			if (err instanceof AppError && err.message === 'EMAIL_NOT_VERIFIED') {
-				return c.redirect('/verify-pending');
+				// Prevent lockouts: Automatically fire a fresh verification email.
+				await authService.requestNewVerification(result.output.email as string, appId);
+				return c.redirect(`/verify-pending?app_id=${appId}`);
 			}
 			const msg = err instanceof AppError ? err.message : 'Login failed';
 			return c.html(loginPage(appId, redirect, msg), 401);
@@ -84,16 +89,15 @@ export class AuthHandler {
 		}
 
 		try {
-			// Register now sends an email and returns void instead of logging in
 			await authService.register(result.output.email as string, result.output.password as string, appId);
-			return c.redirect('/verify-pending');
+			return c.redirect(`/verify-pending?app_id=${appId}`);
 		} catch (err) {
 			let status: ContentfulStatusCode = 500;
 			let msg = 'Registration failed';
 
 			if (err instanceof AppError) {
 				msg = err.message;
-				err = err.status;
+				status = err.status;
 			}
 
 			return c.html(registerPage(appId, redirect, msg), status);
@@ -107,9 +111,10 @@ export class AuthHandler {
 		}
 
 		const authService = c.get('authService');
+		const csrfToken = c.get('csrfToken');
 		try {
 			await authService.verifyEmailToken(token);
-			return c.html(loginPage('sso', '/', undefined, 'Email verified successfully! You can now log in.'));
+			return c.html(loginPage('sso', '/', csrfToken, undefined, 'Email verified successfully! You can now log in.'));
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'Verification failed.';
 			return c.html(loginPage('sso', '/', msg));
@@ -133,8 +138,9 @@ export class AuthHandler {
 		return c.redirect(redirect);
 	}
 
-	static async renderForgot(c: Context) {
-		return c.html(forgotPasswordPage());
+	static async renderForgot(c: Context<HonoEnv>) {
+		const csrfToken = c.get('csrfToken');
+		return c.html(forgotPasswordPage(csrfToken));
 	}
 
 	static async handleForgot(c: Context<HonoEnv>) {
@@ -143,19 +149,22 @@ export class AuthHandler {
 		if (result.success) {
 			await c.get('authService').requestPasswordReset(result.output.email);
 		}
-		return c.html(forgotPasswordPage(undefined, true));
+		const csrfToken = c.get('csrfToken');
+		return c.html(forgotPasswordPage(csrfToken, undefined, true));
 	}
 
-	static async renderReset(c: Context) {
+	static async renderReset(c: Context<HonoEnv>) {
 		const token = c.req.query('token');
 		if (!token) return c.redirect('/login');
-		return c.html(resetPasswordPage(token));
+		const csrfToken = c.get('csrfToken');
+		return c.html(resetPasswordPage(token, csrfToken));
 	}
 
 	static async handleReset(c: Context<HonoEnv>) {
 		const formData = await c.req.parseBody();
 		const result = v.safeParse(ResetPasswordSchema, formData);
 		const token = (formData.token as string) || '';
+		const csrfToken = c.get('csrfToken');
 
 		if (!result.success) {
 			return c.html(resetPasswordPage(token, result.issues[0].message), 400);
@@ -163,7 +172,7 @@ export class AuthHandler {
 
 		try {
 			await c.get('authService').resetPassword(result.output.token, result.output.password);
-			return c.html(loginPage('sso', '/', undefined, 'Password reset successful! You can now log in.'));
+			return c.html(loginPage('sso', '/', csrfToken, undefined, 'Password reset successful! You can now log in.'));
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : 'Reset failed';
 			return c.html(resetPasswordPage(result.output.token, msg), 400);

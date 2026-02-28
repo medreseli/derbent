@@ -1,28 +1,14 @@
-### 1. Email Verification with Resend - DONE, NEEDS TO BE CHECKED
-
-An identity provider isn't complete without verifying email ownership.
-
-- **Database Update:** Add an `email_verified BOOLEAN DEFAULT 0` column to your `users` table in `schema.sql`.
-- **Token Generation:** When a user registers, generate a secure random token (e.g., `crypto.randomUUID()`).
-- **Storage:** Store this token in **KV** with a short TTL (e.g., 15 minutes) mapped to the user's ID: `kv.put('verify_email:<token>', userId, { expirationTtl: 900 })`.
-- **Resend Integration:** Use `fetch` to call the Resend API (`https://api.resend.com/emails`) to send a clean HTML email containing a link like `https://derbent.zerdalu.com/verify-email?token=<token>`.
-- **Enforcement:** Modify your login logic. If `user.email_verified === 0`, redirect them to a "Please verify your email" page instead of creating a session.
-
-### 2. Crucial Security Fixes (Portfolio Must-Haves) - DONE, NEEDS TO BE CHECKED
-
-If an employer or security-minded developer looks at this code, they will look for these:
-
-- **XSS Protection in Templates:** Currently, you are using raw JavaScript template literals for HTML (`src/lib/html.ts`). If any user input is reflected in the HTML (like the `error` parameter), it is a potential Cross-Site Scripting (XSS) vulnerability. You should implement a simple HTML escape function for all dynamic variables, or switch to a lightweight JSX renderer.
-- **Rate Limiting:** Auth endpoints (`/login` and `/register`) are prime targets for brute-force and credential stuffing attacks. You should implement rate limiting. Cloudflare WAF handles this easily, but you can also use the new Cloudflare Workers Rate Limiting API.
-  https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
-
-### 3. Core Identity Features
-
-- **Password Reset Flow:** Add a "Forgot Password" link. This will use the exact same logic as Email Verification: generate a token, store in KV, email via Resend, and create a `/reset-password?token=...` page. **- DONE, NEEDS TO BE CHECKED**
 - **Session Revocation:** Right now, users can log out of their _current_ session. But what if they want to "Log out of all devices"? You need a way to track which sessions belong to which user. You could store a list of active `sessionId`s in the user's D1 `metadata` or use KV prefixes to find and delete them.
 - **OAuth / Social Login:** Adding "Login with GitHub" or "Login with Google" would make this a true SSO provider. You would handle the OAuth callback and map the social email to your `users` table.
 
-### 4. Code Architecture & DX - DONE, NEEDS TO BE CHECKED
+* **Session Hijacking Prevention:** If a user's session cookie is stolen, the attacker has full access.
+  - _Fix:_ When creating a session in KV, store the user's `User-Agent` and IP address. On the `/verify` internal endpoint, ensure the IP/Agent hasn't wildly changed.
 
-- **Routing Library:** Your `index.ts` manually checks `if (path === '/' && method === 'GET')`. As you add `/verify-email`, `/forgot-password`, and `/reset-password`, this file will become massive. I highly recommend migrating to a lightweight edge router like **Hono**. It handles routing, query parsing, and has built-in XSS-safe JSX templating out of the box.
-- **Security Headers:** Add headers like `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and a basic `Content-Security-Policy` to your `htmlResponse` function.
+- **The "Log Out Everywhere" Problem:** Right now, a user's session is stored in KV as `sessionId -> SessionData`. If a user gets hacked and resets their password, you have no way to find and delete their active sessions because you don't know their `sessionId`s.
+  - _Fix:_ In your D1 `users` table, add a `version` integer. Put that same `version` in the KV session. If a user resets a password, increment `version` in D1. In your `/verify` endpoint, check if the Session's version matches the D1 version. (Alternatively, maintain a list of active `sessionId`s in the user's D1 `metadata`).
+- **Caching Verification:** Your service bindings hit `/verify` on every request. This is fast on Cloudflare, but costs CPU time.
+  - _Fix:_ The app consuming the verification (e.g., `geveze`) should cache the validation result in memory for 1-5 minutes to reduce load on Derbent.
+
+- **Magic Links:** Since you already have Resend integrated for email verification and password resets, you are 90% of the way to "Passwordless Login." You could allow users to just type their email and click a link to log in.
+- **Audit Logs:** Add an `audit_logs` table to D1. Every time a user logs in, fails a login, or resets a password, write a row: `(user_id, action, ip_address, timestamp)`. This is highly requested in B2B apps.
+- **Database Migrations:** Right now you are running manual SQL commands (`wrangler d1 execute`). Cloudflare has a built-in migration system (`wrangler d1 migrations create`). You should move `schema.sql` into a proper migrations folder so you can track DB changes via Git.

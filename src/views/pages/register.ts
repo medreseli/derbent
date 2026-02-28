@@ -1,7 +1,7 @@
 import { html } from 'hono/html';
 import { layout } from '../components/layout';
 
-export const registerPage = (appId: string, redirect: string, error?: string) => {
+export const registerPage = (appId: string, redirect: string, csrfToken: string, error?: string) => {
 	const errorHtml = error ? html`<div class="error">${error}</div>` : '';
 	const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
 	const action = `/register?${qs}`;
@@ -31,6 +31,8 @@ export const registerPage = (appId: string, redirect: string, error?: string) =>
 					<label for="confirmPassword">Confirm password</label>
 					<input type="password" id="confirmPassword" name="confirmPassword" placeholder="••••••••" required />
 				</div>
+
+				<input type="hidden" name="csrf_token" value="${csrfToken}" />
 
 				<button type="submit">Register for ${appName}</button>
 			</form>

@@ -11,6 +11,15 @@ Nothing enters without recognition. Nothing passes without consent.
 
 This project is a centralized Authentication & Authorization service built on **Cloudflare Workers**. It serves as the single source of truth for user identity across the `zerdalu.com` domain and its subdomains (e.g., `geveze.zerdalu.com`).
 
+### Architecture
+
+- Infrastructure
+  - Cloudflare Workers, D1 (SQLite), KV
+- Dependency Injection / Router - src/index.ts
+- Presentation - src/handlers/, src/views/
+- Business Logic - src/services/
+- Data Access - src/repositories/
+
 **Crucial Architecture Decisions:**
 
 1.  **No JWTs:** We use **Opaque Tokens** (Random UUIDs).
@@ -114,13 +123,33 @@ CREATE INDEX idx_users_email ON users(email);
 4.  **Hash Password:** Use `PBKDF2` via Web Crypto API with 100k+ iterations.
 5.  **Insert:** Save to D1 and create KV session.
 
-#### `GET /logout`
+#### `POST /logout`
 
 - **Logic:**
   1.  Parse cookie to get `sessionId`.
   2.  `await KV.delete(sessionId)`.
   3.  Expire the cookie (Max-Age=0).
   4.  Redirect to `redirect` param or root.
+
+```js
+app.post('/logout', async (c) => {
+	// 1. Geveze sends an internal request to Derbent via Service Binding
+	// It passes the exact same Cookie header it received from the browser
+	await c.env.DERBENT_SERVICE.fetch('http://internal/internal/logout?app_id=geveze', {
+		method: 'POST',
+		headers: {
+			Cookie: c.req.header('Cookie') || '',
+		},
+	});
+
+	// 2. Derbent has now deleted the session from KV!
+	// 3. Geveze must now tell the browser to delete the cookie on the client side.
+	deleteCookie(c, 'session_geveze', { domain: '.zerdalu.com', path: '/' });
+
+	// 4. Redirect the user to Geveze's homepage
+	return c.redirect('/');
+});
+```
 
 ### Internal Endpoint (Service Binding Only)
 

@@ -8,5 +8,6 @@ export type HonoEnv = {
 	};
 	Variables: {
 		authService: AuthService;
+		csrfToken: string;
 	};
 };

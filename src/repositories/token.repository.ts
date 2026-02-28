@@ -1,7 +1,7 @@
 export class TokenRepository {
 	constructor(private kv: KVNamespace) {}
 
-	// Email Verification (existing)
+	// Email Verification
 	async saveEmailVerificationToken(token: string, userId: string, ttlSeconds: number = 900): Promise<void> {
 		await this.kv.put(`verify_email:${token}`, userId, { expirationTtl: ttlSeconds });
 	}
@@ -10,7 +10,11 @@ export class TokenRepository {
 		return await this.kv.get(`verify_email:${token}`);
 	}
 
-	// Password Reset (new)
+	async deleteEmailVerificationToken(token: string): Promise<void> {
+		await this.kv.delete(`verify_email:${token}`);
+	}
+
+	// Password Reset
 	async savePasswordResetToken(token: string, userId: string, ttlSeconds: number = 900): Promise<void> {
 		await this.kv.put(`reset_pwd:${token}`, userId, { expirationTtl: ttlSeconds });
 	}
@@ -19,7 +23,7 @@ export class TokenRepository {
 		return await this.kv.get(`reset_pwd:${token}`);
 	}
 
-	async deleteToken(tokenKey: string): Promise<void> {
-		await this.kv.delete(tokenKey);
+	async deletePasswordResetToken(token: string): Promise<void> {
+		await this.kv.delete(`reset_pwd:${token}`);
 	}
 }

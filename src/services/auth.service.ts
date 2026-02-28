@@ -17,7 +17,10 @@ export class AuthService {
 	async login(email: string, password: string, appId: string): Promise<{ sessionId: string; app: string }> {
 		const user = await this.userRepo.findForLogin(email, appId);
 
-		if (!user || !(await verifyPassword(password, user.phash))) {
+		let isPasswordVerified = false;
+		if (user) isPasswordVerified = await verifyPassword(password, user.phash);
+
+		if (!user || !isPasswordVerified) {
 			throw new AppError('Invalid email or password', 401);
 		}
 
@@ -69,8 +72,6 @@ export class AuthService {
 		const token = crypto.randomUUID();
 		await this.tokenRepo.saveEmailVerificationToken(token, userId);
 		await this.emailService.sendVerificationEmail(email, token);
-
-		// Notice we no longer create a session or return a sessionId here.
 	}
 
 	async requestNewVerification(email: string, appId: string): Promise<void> {
@@ -91,7 +92,7 @@ export class AuthService {
 		}
 
 		await this.userRepo.markEmailVerified(userId);
-		await this.tokenRepo.deleteToken(token);
+		await this.tokenRepo.deleteEmailVerificationToken(token);
 	}
 
 	async logout(sessionId: string): Promise<void> {
@@ -111,8 +112,6 @@ export class AuthService {
 	}
 
 	async requestPasswordReset(email: string): Promise<void> {
-		// We search across all apps or specifically for SSO
-		// Usually, password reset is a Global (SSO) concern
 		const user = await this.userRepo.findByEmailAndApp(email, 'sso');
 
 		// Security: Always respond with success to prevent email enumeration
@@ -131,8 +130,6 @@ export class AuthService {
 
 		const phash = await hashPassword(newPassword);
 		await this.userRepo.updatePassword(userId, phash);
-		await this.tokenRepo.deleteToken(`reset_pwd:${token}`);
-
-		// Optional: You could also delete all active sessions for this user here
+		await this.tokenRepo.deletePasswordResetToken(token);
 	}
 }
