@@ -1,3 +1,5 @@
+DROP TABLE users;
+
 CREATE TABLE users (
     id TEXT PRIMARY KEY,                -- UUIDv7 or NanoID
     app TEXT NOT NULL,                  -- 'sso', 'geveze', 'hodan', etc.

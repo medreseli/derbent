@@ -1,3 +1,22 @@
+# OKU
+
+- https://chatgpt.com/c/69a2c3d6-d8a8-8331-9f41-1446bce4f789
+- https://chatgpt.com/c/69a17e65-3e50-8327-869b-7b8ffb484780
+
+## Being Better At Design
+
+- https://aistudio.google.com/prompts/1Sf3JK_XRGO2bM14zDhorJkOu_zebwmrf
+- https://chatgpt.com/c/69a2580a-1bf8-8328-8421-53994521ec7c
+- https://component.gallery/
+- https://atomicdesign.bradfrost.com/table-of-contents/
+- https://programmingdesignsystems.com/introduction/
+
+## How Feelings Are Generated
+
+- https://chatgpt.com/c/69a3b69b-d3c4-8333-b5ba-ffd52d4124cc
+
+# YAP
+
 - **Session Revocation:** Right now, users can log out of their _current_ session. But what if they want to "Log out of all devices"? You need a way to track which sessions belong to which user. You could store a list of active `sessionId`s in the user's D1 `metadata` or use KV prefixes to find and delete them.
 - **OAuth / Social Login:** Adding "Login with GitHub" or "Login with Google" would make this a true SSO provider. You would handle the OAuth callback and map the social email to your `users` table.
 

@@ -1,16 +1,16 @@
 export class EmailService {
+	private fromEmail: string;
+
 	constructor(
-		private resendApiKey?: string,
+		private resendApiKey: string,
+		private resendDomain: String,
 		private baseUrl: string = 'https://derbent.zerdalu.com',
-	) {}
+	) {
+		this.fromEmail = `derbent@${this.resendDomain}`;
+	}
 
 	async sendVerificationEmail(to: string, token: string): Promise<void> {
 		const verificationUrl = `${this.baseUrl}/verify-email?token=${token}`;
-
-		if (!this.resendApiKey) {
-			console.log(`[MOCK EMAIL] To: ${to} | Link: ${verificationUrl}`);
-			return;
-		}
 
 		const response = await fetch('https://api.resend.com/emails', {
 			method: 'POST',
@@ -19,7 +19,7 @@ export class EmailService {
 				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
-				from: 'Derbent <auth@zerdalu.com>',
+				from: `Derbent <${this.fromEmail}>`,
 				to,
 				subject: 'Verify your email address',
 				html: `
@@ -42,11 +42,6 @@ export class EmailService {
 	async sendPasswordResetEmail(to: string, token: string): Promise<void> {
 		const resetUrl = `${this.baseUrl}/reset-password?token=${token}`;
 
-		if (!this.resendApiKey) {
-			console.log(`[MOCK EMAIL] Reset Link: ${resetUrl}`);
-			return;
-		}
-
 		await fetch('https://api.resend.com/emails', {
 			method: 'POST',
 			headers: {
@@ -54,7 +49,7 @@ export class EmailService {
 				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
-				from: 'Derbent <auth@zerdalu.com>',
+				from: `Derbent <${this.fromEmail}>`,
 				to,
 				subject: 'Reset your password',
 				html: `
@@ -71,11 +66,6 @@ export class EmailService {
 		const qs = new URLSearchParams({ token, app_id: appId, redirect }).toString();
 		const magicLinkUrl = `${this.baseUrl}/verify-magic-link?${qs}`;
 
-		if (!this.resendApiKey) {
-			console.log(`[MOCK EMAIL] Magic Link To: ${to} | Link: ${magicLinkUrl}`);
-			return;
-		}
-
 		const response = await fetch('https://api.resend.com/emails', {
 			method: 'POST',
 			headers: {
@@ -83,7 +73,7 @@ export class EmailService {
 				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
-				from: 'Derbent <auth@zerdalu.com>',
+				from: `Derbent <${this.fromEmail}>`,
 				to,
 				subject: 'Sign in to your account',
 				html: `

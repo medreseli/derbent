@@ -22,7 +22,7 @@ app.use('*', async (c, next) => {
 	const sessionRepo = new SessionRepository(c.env.KV);
 	const tokenRepo = new TokenRepository(c.env.KV);
 
-	const emailService = new EmailService(c.env.RESEND_API_KEY, c.env.BASE_URL);
+	const emailService = new EmailService(c.env.RESEND_API_KEY, c.env.RESEND_DOMAIN, c.env.BASE_URL);
 
 	const authService = new AuthService(userRepo, sessionRepo, tokenRepo, emailService);
 	c.set('authService', authService);

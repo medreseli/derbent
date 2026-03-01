@@ -9,17 +9,23 @@ export const csrfOnGet = (): MiddlewareHandler<HonoEnv> => {
 		let csrfToken = getCookie(c, `csrf_token`);
 		if (!csrfToken) csrfToken = crypto.randomUUID();
 
-		setCookie(c, `csrf_token`, csrfToken, {
-			domain: '.zerdalu.com',
+		c.set('csrfToken', csrfToken);
+		await next();
+
+		const cookieOptions: any = {
 			path: '/',
-			secure: true,
 			httpOnly: true,
 			sameSite: 'Lax',
 			maxAge: 86400,
-		});
+		};
 
-		c.set('csrfToken', csrfToken);
-		await next();
+		const isProduction = c.env.NIYET === 'yayma';
+		if (isProduction) {
+			cookieOptions.domain = '.zerdalu.com';
+			cookieOptions.secure = true;
+		}
+
+		setCookie(c, `csrf_token`, csrfToken, cookieOptions);
 	};
 };
 
@@ -31,6 +37,10 @@ export const csrfOnPost = (): MiddlewareHandler<HonoEnv> => {
 		const csrfTokenFromForm = formData['csrf_token'];
 
 		if (!csrfToken || !csrfTokenFromForm || csrfToken !== csrfTokenFromForm) {
+			console.error(`[CSRF ERROR] Failed validation on ${c.req.path}`);
+			console.error(`  - Cookie Token: ${csrfToken}`);
+			console.error(`  - Form Token:   ${csrfTokenFromForm}`);
+
 			return c.html(layout('Forbidden', html` <p class="lead">You can not complete this action.</p> `), 403);
 		}
 

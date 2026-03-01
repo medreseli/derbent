@@ -21,6 +21,24 @@ function getParams(c: Context) {
 	return parsed.success ? { redirect: parsed.output.redirect, appId: parsed.output.app_id } : { redirect: '/', appId: 'sso' };
 }
 
+function getCookieOptions(c: Context) {
+	const url = new URL(c.req.url);
+	const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '0.0.0.0';
+
+	const options: any = {
+		path: '/',
+		httpOnly: true,
+		sameSite: 'Lax',
+	};
+
+	if (!isLocalhost) {
+		options.domain = '.zerdalu.com';
+		options.secure = true;
+	}
+
+	return options;
+}
+
 export class AuthHandler {
 	static async index(c: Context<HonoEnv>) {
 		return c.html(landingPage());
@@ -51,30 +69,28 @@ export class AuthHandler {
 		const result = v.safeParse(LoginSchema, formData);
 
 		if (!result.success) {
-			return c.html(loginPage(appId, redirect, result.issues[0].message), 400);
+			console.error(`[LOGIN VALIDATION ERROR]`, result.issues);
+			return c.html(loginPage(appId, redirect, c.get('csrfToken'), result.issues[0].message), 400);
 		}
 
 		try {
 			const { sessionId, app } = await authService.login(result.output.email as string, result.output.password as string, appId);
 
 			setCookie(c, `session_${app}`, sessionId, {
-				domain: '.zerdalu.com',
-				path: '/',
-				secure: true,
-				httpOnly: true,
-				sameSite: 'Lax',
+				...getCookieOptions(c),
 				maxAge: 86400,
 			});
 
 			return c.redirect(redirect);
 		} catch (err) {
+			console.error(`[LOGIN ERROR]`, err);
+
 			if (err instanceof AppError && err.message === 'EMAIL_NOT_VERIFIED') {
-				// Prevent lockouts: Automatically fire a fresh verification email.
 				await authService.requestNewVerification(result.output.email as string, appId);
 				return c.redirect(`/verify-pending?app_id=${appId}`);
 			}
 			const msg = err instanceof AppError ? err.message : 'Login failed';
-			return c.html(loginPage(appId, redirect, msg), 401);
+			return c.html(loginPage(appId, redirect, c.get('csrfToken'), msg), 401);
 		}
 	}
 
@@ -86,13 +102,16 @@ export class AuthHandler {
 		const result = v.safeParse(RegisterSchema, formData);
 
 		if (!result.success) {
-			return c.html(registerPage(appId, redirect, result.issues[0].message), 400);
+			console.error(`[REGISTER VALIDATION ERROR]`, result.issues);
+			return c.html(registerPage(appId, redirect, c.get('csrfToken'), result.issues[0].message), 400);
 		}
 
 		try {
 			await authService.register(result.output.email as string, result.output.password as string, appId);
 			return c.redirect(`/verify-pending?app_id=${appId}`);
 		} catch (err) {
+			console.error(`[REGISTER ERROR]`, err);
+
 			let status: ContentfulStatusCode = 500;
 			let msg = 'Registration failed';
 
@@ -101,14 +120,14 @@ export class AuthHandler {
 				status = err.status;
 			}
 
-			return c.html(registerPage(appId, redirect, msg), status);
+			return c.html(registerPage(appId, redirect, c.get('csrfToken'), msg), status);
 		}
 	}
 
 	static async handleVerifyEmail(c: Context<HonoEnv>) {
 		const token = c.req.query('token');
 		if (!token) {
-			return c.html(loginPage('sso', '/', 'No verification token provided.'));
+			return c.html(loginPage('sso', '/', c.get('csrfToken'), 'No verification token provided.'));
 		}
 
 		const authService = c.get('authService');
@@ -117,23 +136,31 @@ export class AuthHandler {
 			await authService.verifyEmailToken(token);
 			return c.html(loginPage('sso', '/', csrfToken, undefined, 'Email verified successfully! You can now log in.'));
 		} catch (err) {
+			console.error(`[VERIFY EMAIL ERROR]`, err);
 			const msg = err instanceof AppError ? err.message : 'Verification failed.';
-			return c.html(loginPage('sso', '/', msg), 400);
+			return c.html(loginPage('sso', '/', csrfToken, msg), 400);
 		}
 	}
 
 	static async handleLogout(c: Context<HonoEnv>) {
 		const { appId, redirect } = getParams(c);
 		const authService = c.get('authService');
+		const cookieOptions = getCookieOptions(c);
 
 		let sessionId = getCookie(c, `session_${appId}`);
 		if (!sessionId && appId !== 'sso') sessionId = getCookie(c, 'session_sso');
 
-		if (sessionId) await authService.logout(sessionId);
+		if (sessionId) {
+			try {
+				await authService.logout(sessionId);
+			} catch (err) {
+				console.error(`[LOGOUT ERROR]`, err);
+			}
+		}
 
-		deleteCookie(c, `session_${appId}`, { domain: '.zerdalu.com', path: '/' });
+		deleteCookie(c, `session_${appId}`, { domain: cookieOptions.domain, path: '/' });
 		if (appId !== 'sso') {
-			deleteCookie(c, 'session_sso', { domain: '.zerdalu.com', path: '/' });
+			deleteCookie(c, 'session_sso', { domain: cookieOptions.domain, path: '/' });
 		}
 
 		return c.redirect(redirect);
@@ -148,7 +175,13 @@ export class AuthHandler {
 		const formData = await c.req.parseBody();
 		const result = v.safeParse(ForgotPasswordSchema, formData);
 		if (result.success) {
-			await c.get('authService').requestPasswordReset(result.output.email);
+			try {
+				await c.get('authService').requestPasswordReset(result.output.email);
+			} catch (err) {
+				console.error(`[FORGOT PASSWORD ERROR]`, err);
+			}
+		} else {
+			console.error(`[FORGOT PASSWORD VALIDATION ERROR]`, result.issues);
 		}
 		const csrfToken = c.get('csrfToken');
 		return c.html(forgotPasswordPage(csrfToken, undefined, true));
@@ -168,15 +201,17 @@ export class AuthHandler {
 		const csrfToken = c.get('csrfToken');
 
 		if (!result.success) {
-			return c.html(resetPasswordPage(token, result.issues[0].message), 400);
+			console.error(`[RESET VALIDATION ERROR]`, result.issues);
+			return c.html(resetPasswordPage(token, csrfToken, result.issues[0].message), 400);
 		}
 
 		try {
 			await c.get('authService').resetPassword(result.output.token, result.output.password);
 			return c.html(loginPage('sso', '/', csrfToken, undefined, 'Password reset successful! You can now log in.'));
 		} catch (err) {
+			console.error(`[RESET ERROR]`, err);
 			const msg = err instanceof Error ? err.message : 'Reset failed';
-			return c.html(resetPasswordPage(result.output.token, msg), 400);
+			return c.html(resetPasswordPage(result.output.token, csrfToken, msg), 400);
 		}
 	}
 
@@ -194,10 +229,16 @@ export class AuthHandler {
 		const result = v.safeParse(MagicLinkSchema, formData);
 
 		if (!result.success) {
+			console.error(`[MAGIC LINK REQUEST VALIDATION ERROR]`, result.issues);
 			return c.html(magicLinkPage(appId, redirect, csrfToken, result.issues[0].message), 400);
 		}
 
-		await c.get('authService').requestMagicLink(result.output.email, appId, redirect);
+		try {
+			await c.get('authService').requestMagicLink(result.output.email, appId, redirect);
+		} catch (err) {
+			console.error(`[MAGIC LINK REQUEST ERROR]`, err);
+		}
+
 		return c.html(magicLinkPage(appId, redirect, csrfToken, undefined, true));
 	}
 
@@ -215,16 +256,13 @@ export class AuthHandler {
 			const { sessionId, app } = await authService.verifyMagicLink(token, appId);
 
 			setCookie(c, `session_${app}`, sessionId, {
-				domain: '.zerdalu.com',
-				path: '/',
-				secure: true,
-				httpOnly: true,
-				sameSite: 'Lax',
+				...getCookieOptions(c),
 				maxAge: 86400,
 			});
 
 			return c.redirect(redirect);
 		} catch (err) {
+			console.error(`[VERIFY MAGIC LINK ERROR]`, err);
 			const msg = err instanceof AppError ? err.message : 'Magic link sign-in failed.';
 			return c.html(loginPage(appId, redirect, csrfToken, msg), 401);
 		}

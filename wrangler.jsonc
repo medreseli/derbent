@@ -22,6 +22,7 @@
 	"vars": {
 		"NIYET": "yayma",
 		"BASE_URL": "https://derbent.zerdalu.com",
+		"RESEND_DOMAIN": "destek.zerdalu.com",
 	},
 	"kv_namespaces": [
 		{
