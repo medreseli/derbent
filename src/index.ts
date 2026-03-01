@@ -10,8 +10,8 @@ import { TokenRepository } from './repositories/token.repository';
 import { EmailService } from './services/email.service';
 import { AuthService } from './services/auth.service';
 import { HonoEnv } from './types/hono-env';
-import { rateLimit } from './middleware/rate-limit';
-import { csrfOnGet, csrfOnPost } from './middleware/csrf';
+import { csrfOnGet, csrfOnPost } from './middleware/csrf.middleware';
+import { rateLimit } from './middleware/rate-limit.middleware';
 
 const app = new Hono<HonoEnv>();
 
@@ -53,12 +53,17 @@ app.post('/internal/logout', InternalHandler.logout);
 
 // Email Verification Routes
 app.get('/verify-pending', AuthHandler.renderVerifyPending);
-app.get('/verify-email', AuthHandler.handleVerifyEmail);
+app.get('/verify-email', csrfOnGet(), AuthHandler.handleVerifyEmail);
 
 // Password Reset Routes
 app.get('/forgot-password', csrfOnGet(), AuthHandler.renderForgot);
 app.post('/forgot-password', csrfOnPost(), AuthHandler.handleForgot);
 app.get('/reset-password', csrfOnGet(), AuthHandler.renderReset);
 app.post('/reset-password', csrfOnPost(), AuthHandler.handleReset);
+
+// Magic Link Routes
+app.get('/magic-link', csrfOnGet(), AuthHandler.renderMagicLink);
+app.post('/magic-link', rateLimit(), csrfOnPost(), AuthHandler.handleMagicLinkRequest);
+app.get('/verify-magic-link', csrfOnGet(), AuthHandler.handleVerifyMagicLink);
 
 export default app;

@@ -132,4 +132,52 @@ export class AuthService {
 		await this.userRepo.updatePassword(userId, phash);
 		await this.tokenRepo.deletePasswordResetToken(token);
 	}
+
+	async requestMagicLink(email: string, appId: string, redirect: string): Promise<void> {
+		const user = await this.userRepo.findForLogin(email, appId);
+
+		// Security: Return success silently even if user doesn't exist
+		if (!user) return;
+
+		const token = crypto.randomUUID();
+		await this.tokenRepo.saveMagicLinkToken(token, user.id);
+		await this.emailService.sendMagicLinkEmail(email, token, appId, redirect);
+	}
+
+	async verifyMagicLink(token: string, requiredAppId: string): Promise<{ sessionId: string; app: string }> {
+		const userId = await this.tokenRepo.getUserIdFromMagicLinkToken(token);
+		if (!userId) {
+			throw new AppError('Magic link is invalid or has expired.', 400);
+		}
+
+		const user = await this.userRepo.findById(userId);
+		if (!user) {
+			throw new AppError('User not found.', 400);
+		}
+
+		// Verify the user is allowed to access the requested app context
+		if (user.app !== requiredAppId && user.app !== 'sso') {
+			throw new AppError('Forbidden: You do not have access to this app.', 403);
+		}
+
+		// Magic links inherently verify the email address since they require inbox access
+		if (user.email_verified === 0) {
+			await this.userRepo.markEmailVerified(user.id);
+		}
+
+		// Ensure one-time use
+		await this.tokenRepo.deleteMagicLinkToken(token);
+
+		const sessionId = crypto.randomUUID();
+		const session: Session = {
+			userId: user.id,
+			email: user.email,
+			role: 'user',
+			appId: user.app,
+			createdAt: Date.now(),
+		};
+
+		await this.sessionRepo.create(sessionId, session);
+		return { sessionId, app: user.app };
+	}
 }

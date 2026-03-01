@@ -39,3 +39,7 @@ export const ResetPasswordSchema = v.pipe(
 	}),
 	v.check((input) => input.password === input.confirmPassword, 'Passwords do not match.'),
 );
+
+export const MagicLinkSchema = v.object({
+	email: EmailSchema,
+});

@@ -66,4 +66,40 @@ export class EmailService {
 			}),
 		});
 	}
+
+	async sendMagicLinkEmail(to: string, token: string, appId: string, redirect: string): Promise<void> {
+		const qs = new URLSearchParams({ token, app_id: appId, redirect }).toString();
+		const magicLinkUrl = `${this.baseUrl}/verify-magic-link?${qs}`;
+
+		if (!this.resendApiKey) {
+			console.log(`[MOCK EMAIL] Magic Link To: ${to} | Link: ${magicLinkUrl}`);
+			return;
+		}
+
+		const response = await fetch('https://api.resend.com/emails', {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${this.resendApiKey}`,
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				from: 'Derbent <auth@zerdalu.com>',
+				to,
+				subject: 'Sign in to your account',
+				html: `
+					<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+						<h2>Sign in securely</h2>
+						<p>Click the button below to sign in to your account. This link expires in 15 minutes.</p>
+						<a href="${magicLinkUrl}" style="background: #18181b; color: white; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">Sign In to ${appId === 'sso' ? 'Derbent' : appId}</a>
+						<p style="color: #71717a; font-size: 12px;">If you didn't request this link, you can safely ignore this email.</p>
+					</div>
+				`,
+			}),
+		});
+
+		if (!response.ok) {
+			const errorData = await response.text();
+			throw new Error(`Email provider error: ${errorData}`);
+		}
+	}
 }

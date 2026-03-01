@@ -3,6 +3,10 @@ import { User } from '../types/user';
 export class UserRepository {
 	constructor(private db: D1Database) {}
 
+	async findById(id: string): Promise<User | null> {
+		return await this.db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first<User>();
+	}
+
 	async findByEmailAndApp(email: string, app: string): Promise<User | null> {
 		return await this.db.prepare('SELECT * FROM users WHERE email = ? AND app = ?').bind(email, app).first<User>();
 	}

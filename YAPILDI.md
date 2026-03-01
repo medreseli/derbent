@@ -10,3 +10,4 @@
 - Password Reset Flow
 - Security Headers
 - CSRF Protection
+- Magic Links

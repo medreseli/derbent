@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import * as v from 'valibot';
 import { AppError } from '../types/errors';
 import { HonoEnv } from '../types/hono-env';
-import { ForgotPasswordSchema, LoginSchema, QuerySchema, RegisterSchema, ResetPasswordSchema } from '../utils/validation';
+import { ForgotPasswordSchema, LoginSchema, QuerySchema, RegisterSchema, ResetPasswordSchema, MagicLinkSchema } from '../utils/validation';
 import { landingPage } from '../views/pages/landing';
 import { loginPage } from '../views/pages/login';
 import { registerPage } from '../views/pages/register';
@@ -11,6 +11,7 @@ import { verifyPendingPage } from '../views/pages/verify-pending';
 import { ContentfulStatusCode } from 'hono/utils/http-status';
 import { forgotPasswordPage } from '../views/pages/forgot-password';
 import { resetPasswordPage } from '../views/pages/reset-password';
+import { magicLinkPage } from '../views/pages/magic-link';
 
 function getParams(c: Context) {
 	const parsed = v.safeParse(QuerySchema, {
@@ -117,7 +118,7 @@ export class AuthHandler {
 			return c.html(loginPage('sso', '/', csrfToken, undefined, 'Email verified successfully! You can now log in.'));
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'Verification failed.';
-			return c.html(loginPage('sso', '/', msg));
+			return c.html(loginPage('sso', '/', msg), 400);
 		}
 	}
 
@@ -176,6 +177,56 @@ export class AuthHandler {
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : 'Reset failed';
 			return c.html(resetPasswordPage(result.output.token, msg), 400);
+		}
+	}
+
+	static async renderMagicLink(c: Context<HonoEnv>) {
+		const csrfToken = c.get('csrfToken');
+		const { appId, redirect } = getParams(c);
+		return c.html(magicLinkPage(appId, redirect, csrfToken));
+	}
+
+	static async handleMagicLinkRequest(c: Context<HonoEnv>) {
+		const { appId, redirect } = getParams(c);
+		const csrfToken = c.get('csrfToken');
+
+		const formData = await c.req.parseBody();
+		const result = v.safeParse(MagicLinkSchema, formData);
+
+		if (!result.success) {
+			return c.html(magicLinkPage(appId, redirect, csrfToken, result.issues[0].message), 400);
+		}
+
+		await c.get('authService').requestMagicLink(result.output.email, appId, redirect);
+		return c.html(magicLinkPage(appId, redirect, csrfToken, undefined, true));
+	}
+
+	static async handleVerifyMagicLink(c: Context<HonoEnv>) {
+		const token = c.req.query('token');
+		const { appId, redirect } = getParams(c);
+		const authService = c.get('authService');
+		const csrfToken = c.get('csrfToken');
+
+		if (!token) {
+			return c.html(loginPage(appId, redirect, csrfToken, 'No magic link token provided.'));
+		}
+
+		try {
+			const { sessionId, app } = await authService.verifyMagicLink(token, appId);
+
+			setCookie(c, `session_${app}`, sessionId, {
+				domain: '.zerdalu.com',
+				path: '/',
+				secure: true,
+				httpOnly: true,
+				sameSite: 'Lax',
+				maxAge: 86400,
+			});
+
+			return c.redirect(redirect);
+		} catch (err) {
+			const msg = err instanceof AppError ? err.message : 'Magic link sign-in failed.';
+			return c.html(loginPage(appId, redirect, csrfToken, msg), 401);
 		}
 	}
 }

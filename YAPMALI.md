@@ -9,6 +9,5 @@
 - **Caching Verification:** Your service bindings hit `/verify` on every request. This is fast on Cloudflare, but costs CPU time.
   - _Fix:_ The app consuming the verification (e.g., `geveze`) should cache the validation result in memory for 1-5 minutes to reduce load on Derbent.
 
-- **Magic Links:** Since you already have Resend integrated for email verification and password resets, you are 90% of the way to "Passwordless Login." You could allow users to just type their email and click a link to log in.
 - **Audit Logs:** Add an `audit_logs` table to D1. Every time a user logs in, fails a login, or resets a password, write a row: `(user_id, action, ip_address, timestamp)`. This is highly requested in B2B apps.
 - **Database Migrations:** Right now you are running manual SQL commands (`wrangler d1 execute`). Cloudflare has a built-in migration system (`wrangler d1 migrations create`). You should move `schema.sql` into a proper migrations folder so you can track DB changes via Git.

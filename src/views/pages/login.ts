@@ -10,6 +10,7 @@ export const loginPage = (appId: string, redirect: string, csrfToken: string, er
 	const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
 	const action = `/login?${qs}`;
 	const registerLink = `/register?${qs}`;
+	const magicLink = `/magic-link?${qs}`;
 
 	const appName = appId === 'sso' ? 'Derbent' : appId;
 	const subtitle =
@@ -27,11 +28,6 @@ export const loginPage = (appId: string, redirect: string, csrfToken: string, er
 				</div>
 
 				<div class="form-group">
-					<label for="password">Password</label>
-					<input type="password" id="password" name="password" placeholder="••••••••" required />
-				</div>
-
-				<div class="form-group">
 					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
 						<label for="password" style="margin-bottom: 0;">Password</label>
 						<a href="/forgot-password" style="font-size: 0.8rem; color: var(--text-muted);">Forgot?</a>
@@ -43,6 +39,7 @@ export const loginPage = (appId: string, redirect: string, csrfToken: string, er
 
 				<button type="submit">Sign in to ${appName}</button>
 			</form>
+			<p class="footer-text" style="margin-top: 1rem; margin-bottom: 0.5rem;">Or <a href="${magicLink}">sign in with a Magic Link</a></p>
 			<p class="footer-text">Don't have an account? <a href="${registerLink}">Sign up</a></p>
 		`,
 	);

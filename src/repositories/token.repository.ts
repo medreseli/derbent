@@ -26,4 +26,17 @@ export class TokenRepository {
 	async deletePasswordResetToken(token: string): Promise<void> {
 		await this.kv.delete(`reset_pwd:${token}`);
 	}
+
+	// Magic Link
+	async saveMagicLinkToken(token: string, userId: string, ttlSeconds: number = 900): Promise<void> {
+		await this.kv.put(`magic_link:${token}`, userId, { expirationTtl: ttlSeconds });
+	}
+
+	async getUserIdFromMagicLinkToken(token: string): Promise<string | null> {
+		return await this.kv.get(`magic_link:${token}`);
+	}
+
+	async deleteMagicLinkToken(token: string): Promise<void> {
+		await this.kv.delete(`magic_link:${token}`);
+	}
 }
