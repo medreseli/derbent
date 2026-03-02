@@ -3,7 +3,16 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import * as v from 'valibot';
 import { AppError } from '../types/errors';
 import { HonoEnv } from '../types/hono-env';
-import { ForgotPasswordSchema, LoginSchema, QuerySchema, RegisterSchema, ResetPasswordSchema, MagicLinkSchema } from '../utils/validation';
+import {
+	ForgotPasswordSchema,
+	LoginSchema,
+	QuerySchema,
+	RegisterSchema,
+	ResetPasswordSchema,
+	MagicLinkSchema,
+	ALLOWED_APPS,
+} from '../utils/validation';
+import { getCookieOptions } from '../utils/cookie';
 import { landingPage } from '../views/pages/landing';
 import { loginPage } from '../views/pages/login';
 import { registerPage } from '../views/pages/register';
@@ -21,27 +30,28 @@ function getParams(c: Context) {
 	return parsed.success ? { redirect: parsed.output.redirect, appId: parsed.output.app_id } : { redirect: '/', appId: 'sso' };
 }
 
-function getCookieOptions(c: Context) {
-	const url = new URL(c.req.url);
-	const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '0.0.0.0';
-
-	const options: any = {
-		path: '/',
-		httpOnly: true,
-		sameSite: 'Lax',
-	};
-
-	if (!isLocalhost) {
-		options.domain = '.zerdalu.com';
-		options.secure = true;
-	}
-
-	return options;
-}
-
 export class AuthHandler {
 	static async index(c: Context<HonoEnv>) {
-		return c.html(landingPage());
+		const authService = c.get('authService');
+		const csrfToken = c.get('csrfToken');
+
+		let session = null;
+		let isAdmin = false;
+
+		for (const app of ALLOWED_APPS) {
+			const sessionId = getCookie(c, `session_${app}`);
+			if (sessionId) {
+				try {
+					session = await authService.verifySession(sessionId, app);
+					isAdmin = session.email === c.env.ADMIN_EMAIL;
+					break;
+				} catch (err) {
+					// Cookie exists but is invalid/expired. Ignore and check the next app.
+				}
+			}
+		}
+
+		return c.html(landingPage(csrfToken, session, isAdmin));
 	}
 
 	static async renderLogin(c: Context<HonoEnv>) {
@@ -64,26 +74,30 @@ export class AuthHandler {
 	static async handleLogin(c: Context<HonoEnv>) {
 		const { appId, redirect } = getParams(c);
 		const authService = c.get('authService');
+		const logger = c.get('logger');
 
 		const formData = await c.req.parseBody();
 		const result = v.safeParse(LoginSchema, formData);
 
 		if (!result.success) {
-			console.error(`[LOGIN VALIDATION ERROR]`, result.issues);
+			logger.warn(`Login validation failed for app: ${appId}`, result.issues);
 			return c.html(loginPage(appId, redirect, c.get('csrfToken'), result.issues[0].message), 400);
 		}
 
 		try {
 			const { sessionId, app } = await authService.login(result.output.email as string, result.output.password as string, appId);
 
-			setCookie(c, `session_${app}`, sessionId, {
-				...getCookieOptions(c),
-				maxAge: 86400,
-			});
+			const cookieOpts = getCookieOptions(c);
+			cookieOpts.maxAge = 86400; // 24 hours
+
+			setCookie(c, `session_${app}`, sessionId, cookieOpts);
+			logger.info(`Successful login. Setting Cookie "session_${app}"`, { email: result.output.email });
+
+			deleteCookie(c, 'csrf_token', getCookieOptions(c));
 
 			return c.redirect(redirect);
 		} catch (err) {
-			console.error(`[LOGIN ERROR]`, err);
+			logger.error(`Login error for ${result.output.email}`, err);
 
 			if (err instanceof AppError && err.message === 'EMAIL_NOT_VERIFIED') {
 				await authService.requestNewVerification(result.output.email as string, appId);
@@ -158,9 +172,10 @@ export class AuthHandler {
 			}
 		}
 
-		deleteCookie(c, `session_${appId}`, { domain: cookieOptions.domain, path: '/' });
+		deleteCookie(c, 'csrf_token', getCookieOptions(c));
+		deleteCookie(c, `session_${appId}`, cookieOptions);
 		if (appId !== 'sso') {
-			deleteCookie(c, 'session_sso', { domain: cookieOptions.domain, path: '/' });
+			deleteCookie(c, 'session_sso', cookieOptions);
 		}
 
 		return c.redirect(redirect);
@@ -255,10 +270,10 @@ export class AuthHandler {
 		try {
 			const { sessionId, app } = await authService.verifyMagicLink(token, appId);
 
-			setCookie(c, `session_${app}`, sessionId, {
-				...getCookieOptions(c),
-				maxAge: 86400,
-			});
+			const cookieOpts = getCookieOptions(c);
+			cookieOpts.maxAge = 86400;
+
+			setCookie(c, `session_${app}`, sessionId, cookieOpts);
 
 			return c.redirect(redirect);
 		} catch (err) {

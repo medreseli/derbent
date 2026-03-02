@@ -1,7 +1,9 @@
 import * as v from 'valibot';
 
+export const ALLOWED_APPS = ['sso', 'geveze', 'hodan'] as const;
+
 export const QuerySchema = v.object({
-	app_id: v.optional(v.string(), 'sso'),
+	app_id: v.optional(v.picklist(ALLOWED_APPS), 'sso'),
 	redirect: v.optional(v.string(), '/'),
 });
 

@@ -12,12 +12,24 @@ import { AuthService } from './services/auth.service';
 import { HonoEnv } from './types/hono-env';
 import { csrfOnGet, csrfOnPost } from './middleware/csrf.middleware';
 import { rateLimit } from './middleware/rate-limit.middleware';
+import { adminAuth } from './middleware/admin-auth.middleware';
+import { AdminHandler } from './handlers/admin.handler';
+import { Logger } from './utils/logger';
 
 const app = new Hono<HonoEnv>();
 
 app.use('*', secureHeaders());
 
+app.get('/favicon.ico', (c) => {
+	// 204 means "Success, but there is no content to return"
+	// The browser will fall back to using the <link rel="icon"> in the HTML head.
+	return c.body(null, 204);
+});
+
 app.use('*', async (c, next) => {
+	const logger = new Logger(c.env.LOG_LEVEL || 'info');
+	c.set('logger', logger);
+
 	const userRepo = new UserRepository(c.env.DB);
 	const sessionRepo = new SessionRepository(c.env.KV);
 	const tokenRepo = new TokenRepository(c.env.KV);
@@ -65,5 +77,8 @@ app.post('/reset-password', csrfOnPost(), AuthHandler.handleReset);
 app.get('/magic-link', csrfOnGet(), AuthHandler.renderMagicLink);
 app.post('/magic-link', rateLimit(), csrfOnPost(), AuthHandler.handleMagicLinkRequest);
 app.get('/verify-magic-link', csrfOnGet(), AuthHandler.handleVerifyMagicLink);
+
+// Admin Routes
+app.get('/admin', adminAuth(), AdminHandler.renderDashboard);
 
 export default app;
