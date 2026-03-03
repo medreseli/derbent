@@ -29,10 +29,11 @@ export class InternalHandler {
 
 			// Cache verification result for 1 minute to reduce D1/KV load from frequent internal requests
 			c.header('Cache-Control', 'private, max-age=60');
+			c.header('Vary', 'Cookie'); // Ensure different sessions aren't cached together
 
 			return c.json(session);
 		} catch (err) {
-			c.header('Cache-Control', 'no-store');
+			c.header('Cache-Control', 'no-store, no-cache, must-revalidate');
 			const status = err instanceof AppError ? err.status : 500;
 			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
 			return c.text(msg, status);

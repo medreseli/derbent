@@ -20,7 +20,7 @@
 		},
 	],
 	"vars": {
-		"NIYET": "yayma",
+		"APP_ENV": "production",
 		"BASE_URL": "https://derbent.zerdalu.com",
 		"RESEND_DOMAIN": "destek.zerdalu.com",
 		"LOG_LEVEL": "warn",

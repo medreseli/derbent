@@ -18,3 +18,4 @@
 # DONE, NEEDS TO BE CHECKED
 
 - OAuth / Social Login - GitHub
+- Caching Verification

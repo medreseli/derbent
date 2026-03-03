@@ -10,7 +10,7 @@ export function getCookieOptions(c: Context) {
 		sameSite: 'Lax',
 	};
 
-	const isProduction = c.env.NIYET === 'yayma';
+	const isProduction = c.env.APP_ENV === 'production';
 	if (isProduction) {
 		options.domain = '.zerdalu.com';
 		options.secure = true;
