@@ -24,6 +24,7 @@
 		"BASE_URL": "https://derbent.zerdalu.com",
 		"RESEND_DOMAIN": "destek.zerdalu.com",
 		"LOG_LEVEL": "warn",
+		"GITHUB_CLIENT_ID": "",
 	},
 	"kv_namespaces": [
 		{

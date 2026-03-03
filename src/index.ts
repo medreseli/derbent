@@ -64,6 +64,7 @@ app.post('/login', rateLimit(), csrfOnPost(), AuthHandler.handleLogin);
 app.post('/register', rateLimit(), csrfOnPost(), AuthHandler.handleRegister);
 app.post('/logout', rateLimit(), csrfOnPost(), AuthHandler.handleLogout);
 app.post('/logout-all', rateLimit(), csrfOnPost(), AuthHandler.handleLogoutAll);
+app.post('/logout-all-email', rateLimit(), csrfOnPost(), AuthHandler.handleLogoutAllByEmail);
 
 app.get('/internal/verify', InternalHandler.verify);
 app.post('/internal/logout', InternalHandler.logout);
@@ -82,5 +83,9 @@ app.post('/reset-password', csrfOnPost(), AuthHandler.handleReset);
 app.get('/magic-link', csrfOnGet(), AuthHandler.renderMagicLink);
 app.post('/magic-link', rateLimit(), csrfOnPost(), AuthHandler.handleMagicLinkRequest);
 app.get('/verify-magic-link', csrfOnGet(), AuthHandler.handleVerifyMagicLink);
+
+// OAuth Routes
+app.get('/auth/github', AuthHandler.handleGitHubLogin);
+app.get('/auth/github/callback', AuthHandler.handleGitHubCallback);
 
 export default app;

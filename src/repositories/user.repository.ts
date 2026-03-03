@@ -11,6 +11,11 @@ export class UserRepository {
 		return await this.db.prepare('SELECT * FROM users WHERE email = ? AND app = ?').bind(email, app).first<User>();
 	}
 
+	async findAllByEmail(email: string): Promise<User[]> {
+		const { results } = await this.db.prepare('SELECT * FROM users WHERE email = ?').bind(email).all<User>();
+		return results || [];
+	}
+
 	async findForLogin(email: string, app: string): Promise<User | null> {
 		return await this.db
 			.prepare(
@@ -30,7 +35,7 @@ export class UserRepository {
 		return result !== null;
 	}
 
-	async create(user: User): Promise<void> {
+	async create(user: Omit<User, 'created_at' | 'updated_at'>): Promise<void> {
 		await this.db
 			.prepare('INSERT INTO users (id, app, email, phash, metadata, email_verified, token_version) VALUES (?, ?, ?, ?, ?, ?, ?)')
 			.bind(user.id, user.app, user.email, user.phash, user.metadata, user.email_verified, user.token_version)

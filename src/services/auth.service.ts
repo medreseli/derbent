@@ -20,52 +20,7 @@ export class AuthService {
 		private loginAttemptRepo: LoginAttemptRepository,
 	) {}
 
-	async login(email: string, password: string, appId: string, ip: string, userAgent: string): Promise<{ sessionId: string; app: string }> {
-		const attempts = await this.loginAttemptRepo.getAttempts(email);
-		if (attempts >= 5) {
-			await this.auditLogRepo.log({
-				action: 'login_locked_out',
-				email,
-				ip,
-				userAgent,
-				details: { attempts },
-			});
-			throw new AppError('Too many failed login attempts. Please try again in 15 minutes.', 429);
-		}
-
-		const user = await this.userRepo.findForLogin(email, appId);
-
-		let isPasswordVerified = false;
-		if (user) isPasswordVerified = await verifyPassword(password, user.phash);
-
-		if (!user || !isPasswordVerified) {
-			await this.loginAttemptRepo.incrementAttempts(email);
-
-			await this.auditLogRepo.log({
-				action: 'login_failed',
-				email,
-				ip,
-				userAgent,
-				details: { reason: 'invalid_credentials', appId },
-			});
-			throw new AppError('Invalid email or password', 401);
-		}
-
-		if (user.email_verified === 0) {
-			await this.auditLogRepo.log({
-				action: 'login_failed',
-				userId: user.id,
-				email: user.email,
-				ip,
-				userAgent,
-				details: { reason: 'email_not_verified', appId },
-			});
-			throw new AppError('EMAIL_NOT_VERIFIED', 403);
-		}
-
-		await this.loginAttemptRepo.clearAttempts(email);
-		await this.userTokenVersionRepo.setUserVersion(user.id, user.token_version);
-
+	private async createSessionForUser(user: any, ip: string, userAgent: string): Promise<string> {
 		let userMetadata = {};
 		try {
 			userMetadata = user.metadata ? JSON.parse(user.metadata) : {};
@@ -87,6 +42,42 @@ export class AuthService {
 		};
 
 		await this.sessionRepo.create(sessionId, session);
+		await this.userTokenVersionRepo.setUserVersion(user.id, user.token_version);
+		return sessionId;
+	}
+
+	async login(email: string, password: string, appId: string, ip: string, userAgent: string): Promise<{ sessionId: string; app: string }> {
+		const attempts = await this.loginAttemptRepo.getAttempts(email);
+		if (attempts >= 5) {
+			await this.auditLogRepo.log({ action: 'login_locked_out', email, ip, userAgent, details: { attempts } });
+			throw new AppError('Too many failed login attempts. Please try again in 15 minutes.', 429);
+		}
+
+		const user = await this.userRepo.findForLogin(email, appId);
+
+		let isPasswordVerified = false;
+		if (user && !user.phash.startsWith('OAUTH:')) {
+			isPasswordVerified = await verifyPassword(password, user.phash);
+		}
+
+		if (!user || !isPasswordVerified) {
+			await this.loginAttemptRepo.incrementAttempts(email);
+			await this.auditLogRepo.log({
+				action: 'login_failed',
+				email,
+				ip,
+				userAgent,
+				details: { reason: 'invalid_credentials', appId },
+			});
+			throw new AppError('Invalid email or password', 401);
+		}
+
+		if (user.email_verified === 0) {
+			throw new AppError('EMAIL_NOT_VERIFIED', 403);
+		}
+
+		await this.loginAttemptRepo.clearAttempts(email);
+		const sessionId = await this.createSessionForUser(user, ip, userAgent);
 
 		await this.auditLogRepo.log({
 			action: 'login_success',
@@ -94,7 +85,48 @@ export class AuthService {
 			email: user.email,
 			ip,
 			userAgent,
-			details: { appId, sessionId },
+			details: { appId, sessionId, method: 'password' },
+		});
+
+		return { sessionId, app: user.app };
+	}
+
+	async loginWithOAuth(
+		email: string,
+		provider: string,
+		appId: string,
+		ip: string,
+		userAgent: string,
+	): Promise<{ sessionId: string; app: string }> {
+		// 1. Find or Create User
+		let user = await this.userRepo.findForLogin(email, appId);
+
+		if (!user) {
+			// Auto-provision an SSO account for OAuth users if they don't exist
+			const userId = crypto.randomUUID();
+			await this.userRepo.create({
+				id: userId,
+				app: 'sso',
+				email,
+				phash: `OAUTH:${provider.toUpperCase()}`,
+				metadata: JSON.stringify({ provider }),
+				email_verified: 1, // OAuth emails are usually verified by the provider
+				token_version: 1,
+			});
+			user = await this.userRepo.findById(userId);
+		}
+
+		if (!user) throw new AppError('Failed to sync user', 500);
+
+		const sessionId = await this.createSessionForUser(user, ip, userAgent);
+
+		await this.auditLogRepo.log({
+			action: 'login_success',
+			userId: user.id,
+			email: user.email,
+			ip,
+			userAgent,
+			details: { appId: user.app, sessionId, method: `oauth_${provider}` },
 		});
 
 		return { sessionId, app: user.app };
@@ -102,18 +134,13 @@ export class AuthService {
 
 	async register(email: string, password: string, appId: string, ip: string, userAgent: string): Promise<void> {
 		const existingSso = await this.userRepo.findByEmailAndApp(email, 'sso');
-		if (existingSso) {
-			// Don't log failure here to avoid noise, or log as 'register_attempt_duplicate'
-			throw new AppError('An SSO account already exists for this email.');
-		}
+		if (existingSso) throw new AppError('An SSO account already exists for this email.');
 
 		if (appId !== 'sso') {
 			const existingAppUser = await this.userRepo.findByEmailAndApp(email, appId);
 			if (existingAppUser) throw new AppError('Account already exists for this app.');
 		} else {
-			if (await this.userRepo.hasAnyAppAccount(email)) {
-				throw new AppError('An app-level account already exists for this email.');
-			}
+			if (await this.userRepo.hasAnyAppAccount(email)) throw new AppError('An app-level account already exists for this email.');
 		}
 
 		const phash = await hashPassword(password);
@@ -127,23 +154,45 @@ export class AuthService {
 			metadata: '{}',
 			email_verified: 0,
 			token_version: 1,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
 		});
 
-		await this.auditLogRepo.log({
-			action: 'register',
-			userId,
-			email,
-			ip,
-			userAgent,
-			details: { appId },
-		});
+		await this.auditLogRepo.log({ action: 'register', userId, email, ip, userAgent, details: { appId } });
 
-		// Email Verification Flow
 		const token = crypto.randomUUID();
 		await this.tokenRepo.saveEmailVerificationToken(token, userId);
 		await this.emailService.sendVerificationEmail(email, token);
+	}
+
+	async verifySession(sessionId: string, requiredAppId: string, currentIp?: string, currentUserAgent?: string): Promise<Session> {
+		const session = await this.sessionRepo.get(sessionId);
+		if (!session) throw new AppError('Session not found', 401);
+
+		if (session.appId !== requiredAppId && session.appId !== 'sso') throw new AppError('Forbidden', 403);
+
+		if (currentUserAgent && session.userAgent !== currentUserAgent) {
+			await this.auditLogRepo.log({
+				action: 'security_alert_hijack',
+				userId: session.userId,
+				email: session.email,
+				ip: currentIp,
+				userAgent: currentUserAgent,
+			});
+			throw new AppError('Session invalid (Client Mismatch)', 401);
+		}
+
+		let currentVersion = await this.userTokenVersionRepo.getUserVersion(session.userId);
+		if (currentVersion === null) {
+			const user = await this.userRepo.findById(session.userId);
+			if (!user) throw new AppError('User not found', 401);
+			currentVersion = user.token_version;
+			await this.userTokenVersionRepo.setUserVersion(user.id, currentVersion);
+		}
+
+		if (session.tokenVersion !== currentVersion) {
+			throw new AppError('Session expired (Revoked)', 401);
+		}
+
+		return session;
 	}
 
 	async requestNewVerification(email: string, appId: string, ip: string, userAgent: string): Promise<void> {
@@ -187,8 +236,10 @@ export class AuthService {
 		});
 	}
 
+	/**
+	 * Revokes a SPECIFIC session.
+	 */
 	async logout(sessionId: string): Promise<void> {
-		// Optional: Fetch session before deleting to log who logged out
 		const session = await this.sessionRepo.get(sessionId);
 		await this.sessionRepo.delete(sessionId);
 
@@ -197,12 +248,15 @@ export class AuthService {
 				action: 'logout',
 				userId: session.userId,
 				email: session.email,
-				ip: session.ip, // Log the IP stored in session, or we could pass current IP
+				ip: session.ip,
 				details: { appId: session.appId },
 			});
 		}
 	}
 
+	/**
+	 * Revokes all sessions for a SPECIFIC user account (ID).
+	 */
 	async logoutAll(userId: string, ip: string, userAgent: string): Promise<void> {
 		const newVersion = await this.userRepo.incrementTokenVersion(userId);
 		await this.userTokenVersionRepo.setUserVersion(userId, newVersion);
@@ -214,59 +268,24 @@ export class AuthService {
 		});
 	}
 
-	async verifySession(sessionId: string, requiredAppId: string, currentIp?: string, currentUserAgent?: string): Promise<Session> {
-		const session = await this.sessionRepo.get(sessionId);
-
-		if (!session) throw new AppError('Session not found', 401);
-
-		if (session.appId !== requiredAppId && session.appId !== 'sso') {
-			throw new AppError('Forbidden', 403);
+	/**
+	 * Revokes all sessions for EVERY account associated with this email
+	 * (e.g. 'sso', 'geveze', 'hodan' accounts for the same user).
+	 */
+	async logoutAllByEmail(email: string, ip: string, userAgent: string): Promise<void> {
+		const users = await this.userRepo.findAllByEmail(email);
+		for (const user of users) {
+			const newVersion = await this.userRepo.incrementTokenVersion(user.id);
+			await this.userTokenVersionRepo.setUserVersion(user.id, newVersion);
 		}
 
-		// --- Security Checks ---
-
-		// 1. User Agent (Hijack Protection)
-		if (currentUserAgent && session.userAgent !== currentUserAgent) {
-			console.warn(`[Security] Session Hijack Attempt? UA Mismatch. stored="${session.userAgent}" current="${currentUserAgent}"`);
-			await this.auditLogRepo.log({
-				action: 'security_alert_hijack',
-				userId: session.userId,
-				email: session.email,
-				ip: currentIp,
-				userAgent: currentUserAgent,
-				details: { storedUa: session.userAgent },
-			});
-			throw new AppError('Session invalid (Client Mismatch)', 401);
-		}
-
-		// 2. IP Address (Logging only for now)
-		if (currentIp && session.ip !== currentIp) {
-			console.info(`[Security] IP Changed for user ${session.email}. stored=${session.ip} current=${currentIp}`);
-		}
-
-		// 3. Token Version (Global Revocation Check)
-		let currentVersion = await this.userTokenVersionRepo.getUserVersion(session.userId);
-
-		if (currentVersion === null) {
-			const user = await this.userRepo.findById(session.userId);
-			if (!user) throw new AppError('User not found', 401);
-			currentVersion = user.token_version;
-			await this.userTokenVersionRepo.setUserVersion(user.id, currentVersion);
-		}
-
-		if (session.tokenVersion !== currentVersion) {
-			console.warn(`[Security] Revoked session access attempt for ${session.email} (v${session.tokenVersion} < v${currentVersion})`);
-			await this.auditLogRepo.log({
-				action: 'security_alert_revoked',
-				userId: session.userId,
-				email: session.email,
-				ip: currentIp,
-				userAgent: currentUserAgent,
-			});
-			throw new AppError('Session expired (Revoked)', 401);
-		}
-
-		return session;
+		await this.auditLogRepo.log({
+			action: 'logout_all_by_email',
+			email,
+			ip,
+			userAgent,
+			details: { affectedAccounts: users.length },
+		});
 	}
 
 	async requestPasswordReset(email: string, ip: string, userAgent: string): Promise<void> {

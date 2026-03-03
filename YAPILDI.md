@@ -15,3 +15,5 @@
 - Rate Limiting with Email
 
 # DONE, NEEDS TO BE CHECKED
+
+- OAuth / Social Login - GitHub

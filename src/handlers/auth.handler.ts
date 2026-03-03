@@ -63,7 +63,8 @@ export class AuthHandler {
 	static async renderLogin(c: Context<HonoEnv>) {
 		const csrfToken = c.get('csrfToken');
 		const { appId, redirect } = getParams(c);
-		return c.html(loginPage(appId, redirect, csrfToken));
+		const githubClientId = c.env.GITHUB_CLIENT_ID;
+		return c.html(loginPage(appId, redirect, csrfToken, undefined, undefined, githubClientId));
 	}
 
 	static async renderRegister(c: Context<HonoEnv>) {
@@ -207,13 +208,11 @@ export class AuthHandler {
 		const authService = c.get('authService');
 		const { ip, userAgent } = getClientInfo(c);
 
-		// 1. Identify current user from cookie
 		let sessionId = getCookie(c, `session_${appId}`);
 		if (!sessionId && appId !== 'sso') sessionId = getCookie(c, 'session_sso');
 
 		if (sessionId) {
 			try {
-				// We need to get the session to know which UserID to revoke
 				const session = await authService.verifySession(sessionId, appId);
 				await authService.logoutAll(session.userId, ip, userAgent);
 			} catch (err) {
@@ -221,13 +220,36 @@ export class AuthHandler {
 			}
 		}
 
-		// 2. Clear current cookies
 		const cookieOptions = getCookieOptions(c);
 		deleteCookie(c, 'csrf_token', getCookieOptions(c));
 		deleteCookie(c, `session_${appId}`, cookieOptions);
 		if (appId !== 'sso') {
 			deleteCookie(c, 'session_sso', cookieOptions);
 		}
+
+		return c.redirect(redirect);
+	}
+
+	static async handleLogoutAllByEmail(c: Context<HonoEnv>) {
+		const { appId, redirect } = getParams(c);
+		const authService = c.get('authService');
+		const { ip, userAgent } = getClientInfo(c);
+
+		let sessionId = getCookie(c, `session_${appId}`);
+		if (!sessionId && appId !== 'sso') sessionId = getCookie(c, 'session_sso');
+
+		if (sessionId) {
+			try {
+				const session = await authService.verifySession(sessionId, appId);
+				await authService.logoutAllByEmail(session.email, ip, userAgent);
+			} catch (err) {
+				console.error(`[LOGOUT ALL ERROR]`, err);
+			}
+		}
+
+		const cookieOptions = getCookieOptions(c);
+		deleteCookie(c, `session_${appId}`, cookieOptions);
+		if (appId !== 'sso') deleteCookie(c, 'session_sso', cookieOptions);
 
 		return c.redirect(redirect);
 	}
@@ -339,6 +361,60 @@ export class AuthHandler {
 			console.error(`[VERIFY MAGIC LINK ERROR]`, err);
 			const msg = err instanceof AppError ? err.message : 'Magic link sign-in failed.';
 			return c.html(loginPage(appId, redirect, csrfToken, msg), 401);
+		}
+	}
+
+	static async handleGitHubLogin(c: Context<HonoEnv>) {
+		const { appId, redirect } = getParams(c);
+		const state = btoa(JSON.stringify({ appId, redirect }));
+		const githubUrl = `https://github.com/login/oauth/authorize?client_id=${c.env.GITHUB_CLIENT_ID}&scope=user:email&state=${state}`;
+		return c.redirect(githubUrl);
+	}
+
+	static async handleGitHubCallback(c: Context<HonoEnv>) {
+		const code = c.req.query('code');
+		const state = c.req.query('state');
+		const { ip, userAgent } = getClientInfo(c);
+		const authService = c.get('authService');
+
+		if (!code || !state) return c.redirect('/login');
+
+		try {
+			const { appId, redirect } = JSON.parse(atob(state));
+
+			// 1. Exchange Code for Token
+			const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+				body: JSON.stringify({
+					client_id: c.env.GITHUB_CLIENT_ID,
+					client_secret: c.env.GITHUB_CLIENT_SECRET,
+					code,
+				}),
+			});
+			const tokenData: any = await tokenRes.json();
+			if (!tokenData.access_token) throw new Error('GitHub Auth Failed');
+
+			// 2. Get User Email
+			const emailRes = await fetch('https://api.github.com/user/emails', {
+				headers: { Authorization: `Bearer ${tokenData.access_token}`, 'User-Agent': 'Derbent-Auth' },
+			});
+			const emails: any[] = await emailRes.json();
+			const primaryEmail = emails.find((e) => e.primary && e.verified)?.email || emails[0]?.email;
+
+			if (!primaryEmail) throw new Error('No verified email found on GitHub');
+
+			// 3. Complete Login
+			const { sessionId, app } = await authService.loginWithOAuth(primaryEmail, 'github', appId, ip, userAgent);
+
+			const cookieOpts = getCookieOptions(c);
+			cookieOpts.maxAge = 86400;
+			setCookie(c, `session_${app}`, sessionId, cookieOpts);
+
+			return c.redirect(redirect);
+		} catch (err) {
+			console.error('[GitHub Callback Error]', err);
+			return c.redirect('/login?error=github_failed');
 		}
 	}
 }

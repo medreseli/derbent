@@ -11,7 +11,7 @@ export const landingPage = (csrfToken: string, session?: Session | null) => {
 				<span
 					style="display: inline-block; padding: 0.5rem 1rem; background: #e4e4e7; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; color: #3f3f46;"
 				>
-					Signed in as <strong>${session.email}</strong>
+					Signed in as <strong>${session.email}</strong> (${session.appId})
 				</span>
 			</div>
 
@@ -22,19 +22,21 @@ export const landingPage = (csrfToken: string, session?: Session | null) => {
 						type="submit"
 						style="background: #fff; color: var(--text-main); border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-top: 0;"
 					>
-						Log out
+						Log out (Current Session)
 					</button>
 				</form>
 
 				<form method="POST" action="/logout-all?app_id=${session.appId}&redirect=/" style="width: 100%; margin: 0;">
 					<input type="hidden" name="csrf_token" value="${csrfToken}" />
-					<button
-						type="submit"
-						style="background: transparent; color: #ef4444; border: 1px solid #fca5a5; margin-top: 0;"
-						onmouseover="this.style.background='#fef2f2'"
-						onmouseout="this.style.background='transparent'"
-					>
-						Log out of all devices
+					<button type="submit" style="background: transparent; color: #ef4444; border: 1px solid #fca5a5; margin-top: 0;">
+						Log out all devices (${session.appId} only)
+					</button>
+				</form>
+
+				<form method="POST" action="/logout-all-email?app_id=${session.appId}&redirect=/" style="width: 100%; margin: 0;">
+					<input type="hidden" name="csrf_token" value="${csrfToken}" />
+					<button type="submit" style="background: #ef4444; color: white; border: 1px solid #ef4444; margin-top: 0;">
+						Global Logout (Everywhere)
 					</button>
 				</form>
 			</div>
