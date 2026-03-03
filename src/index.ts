@@ -14,6 +14,8 @@ import { HonoEnv } from './types/hono-env';
 import { Logger } from './utils/logger';
 import { layout } from './views/components/layout';
 import { UserTokenVersionRepository } from './repositories/user-token-version.repository';
+import { AuditLogRepository } from './repositories/audit-log.repository';
+import { LoginAttemptRepository } from './repositories/login-attempt.repository';
 
 const app = new Hono<HonoEnv>();
 
@@ -33,10 +35,12 @@ app.use('*', async (c, next) => {
 	const sessionRepo = new SessionRepository(c.env.KV);
 	const tokenRepo = new TokenRepository(c.env.KV);
 	const userTokenVersionRepo = new UserTokenVersionRepository(c.env.KV);
+	const auditLogRepo = new AuditLogRepository(c.env.DB);
+	const loginAttemptRepo = new LoginAttemptRepository(c.env.KV);
 
 	const emailService = new EmailService(c.env.RESEND_API_KEY, c.env.RESEND_DOMAIN, c.env.BASE_URL);
 
-	const authService = new AuthService(userRepo, sessionRepo, tokenRepo, userTokenVersionRepo, emailService);
+	const authService = new AuthService(userRepo, sessionRepo, tokenRepo, userTokenVersionRepo, emailService, auditLogRepo, loginAttemptRepo);
 	c.set('authService', authService);
 
 	await next();

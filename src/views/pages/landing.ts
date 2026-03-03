@@ -25,6 +25,18 @@ export const landingPage = (csrfToken: string, session?: Session | null) => {
 						Log out
 					</button>
 				</form>
+
+				<form method="POST" action="/logout-all?app_id=${session.appId}&redirect=/" style="width: 100%; margin: 0;">
+					<input type="hidden" name="csrf_token" value="${csrfToken}" />
+					<button
+						type="submit"
+						style="background: transparent; color: #ef4444; border: 1px solid #fca5a5; margin-top: 0;"
+						onmouseover="this.style.background='#fef2f2'"
+						onmouseout="this.style.background='transparent'"
+					>
+						Log out of all devices
+					</button>
+				</form>
 			</div>
 		`;
 	} else {

@@ -113,7 +113,8 @@ export class AuthHandler {
 			logger.error(`Login error for ${result.output.email}`, err);
 
 			if (err instanceof AppError && err.message === 'EMAIL_NOT_VERIFIED') {
-				await authService.requestNewVerification(result.output.email as string, appId);
+				// Pass IP/UA to requestNewVerification
+				await authService.requestNewVerification(result.output.email as string, appId, ip, userAgent);
 				return c.redirect(`/verify-pending?app_id=${appId}`);
 			}
 			const msg = err instanceof AppError ? err.message : 'Login failed';
@@ -124,6 +125,7 @@ export class AuthHandler {
 	static async handleRegister(c: Context<HonoEnv>) {
 		const { appId, redirect } = getParams(c);
 		const authService = c.get('authService');
+		const { ip, userAgent } = getClientInfo(c);
 
 		const formData = await c.req.parseBody();
 		const result = v.safeParse(RegisterSchema, formData);
@@ -134,7 +136,8 @@ export class AuthHandler {
 		}
 
 		try {
-			await authService.register(result.output.email as string, result.output.password as string, appId);
+			// Pass IP/UA
+			await authService.register(result.output.email as string, result.output.password as string, appId, ip, userAgent);
 			return c.redirect(`/verify-pending?app_id=${appId}`);
 		} catch (err) {
 			console.error(`[REGISTER ERROR]`, err);
@@ -153,6 +156,8 @@ export class AuthHandler {
 
 	static async handleVerifyEmail(c: Context<HonoEnv>) {
 		const token = c.req.query('token');
+		const { ip, userAgent } = getClientInfo(c);
+
 		if (!token) {
 			return c.html(loginPage('sso', '/', c.get('csrfToken'), 'No verification token provided.'));
 		}
@@ -160,7 +165,8 @@ export class AuthHandler {
 		const authService = c.get('authService');
 		const csrfToken = c.get('csrfToken');
 		try {
-			await authService.verifyEmailToken(token);
+			// Pass IP/UA
+			await authService.verifyEmailToken(token, ip, userAgent);
 			return c.html(loginPage('sso', '/', csrfToken, undefined, 'Email verified successfully! You can now log in.'));
 		} catch (err) {
 			console.error(`[VERIFY EMAIL ERROR]`, err);
@@ -194,6 +200,36 @@ export class AuthHandler {
 		return c.redirect(redirect);
 	}
 
+	static async handleLogoutAll(c: Context<HonoEnv>) {
+		const { appId, redirect } = getParams(c);
+		const authService = c.get('authService');
+		const { ip, userAgent } = getClientInfo(c);
+
+		// 1. Identify current user from cookie
+		let sessionId = getCookie(c, `session_${appId}`);
+		if (!sessionId && appId !== 'sso') sessionId = getCookie(c, 'session_sso');
+
+		if (sessionId) {
+			try {
+				// We need to get the session to know which UserID to revoke
+				const session = await authService.verifySession(sessionId, appId);
+				await authService.logoutAll(session.userId, ip, userAgent);
+			} catch (err) {
+				console.error(`[LOGOUT ALL ERROR]`, err);
+			}
+		}
+
+		// 2. Clear current cookies
+		const cookieOptions = getCookieOptions(c);
+		deleteCookie(c, 'csrf_token', getCookieOptions(c));
+		deleteCookie(c, `session_${appId}`, cookieOptions);
+		if (appId !== 'sso') {
+			deleteCookie(c, 'session_sso', cookieOptions);
+		}
+
+		return c.redirect(redirect);
+	}
+
 	static async renderForgot(c: Context<HonoEnv>) {
 		const csrfToken = c.get('csrfToken');
 		return c.html(forgotPasswordPage(csrfToken));
@@ -201,10 +237,13 @@ export class AuthHandler {
 
 	static async handleForgot(c: Context<HonoEnv>) {
 		const formData = await c.req.parseBody();
+		const { ip, userAgent } = getClientInfo(c);
 		const result = v.safeParse(ForgotPasswordSchema, formData);
+
 		if (result.success) {
 			try {
-				await c.get('authService').requestPasswordReset(result.output.email);
+				// Pass IP/UA
+				await c.get('authService').requestPasswordReset(result.output.email, ip, userAgent);
 			} catch (err) {
 				console.error(`[FORGOT PASSWORD ERROR]`, err);
 			}
@@ -224,6 +263,7 @@ export class AuthHandler {
 
 	static async handleReset(c: Context<HonoEnv>) {
 		const formData = await c.req.parseBody();
+		const { ip, userAgent } = getClientInfo(c);
 		const result = v.safeParse(ResetPasswordSchema, formData);
 		const token = (formData.token as string) || '';
 		const csrfToken = c.get('csrfToken');
@@ -234,7 +274,8 @@ export class AuthHandler {
 		}
 
 		try {
-			await c.get('authService').resetPassword(result.output.token, result.output.password);
+			// Pass IP/UA
+			await c.get('authService').resetPassword(result.output.token, result.output.password, ip, userAgent);
 			return c.html(loginPage('sso', '/', csrfToken, undefined, 'Password reset successful! You can now log in.'));
 		} catch (err) {
 			console.error(`[RESET ERROR]`, err);
@@ -252,6 +293,7 @@ export class AuthHandler {
 	static async handleMagicLinkRequest(c: Context<HonoEnv>) {
 		const { appId, redirect } = getParams(c);
 		const csrfToken = c.get('csrfToken');
+		const { ip, userAgent } = getClientInfo(c);
 
 		const formData = await c.req.parseBody();
 		const result = v.safeParse(MagicLinkSchema, formData);
@@ -262,7 +304,8 @@ export class AuthHandler {
 		}
 
 		try {
-			await c.get('authService').requestMagicLink(result.output.email, appId, redirect);
+			// Pass IP/UA
+			await c.get('authService').requestMagicLink(result.output.email, appId, redirect, ip, userAgent);
 		} catch (err) {
 			console.error(`[MAGIC LINK REQUEST ERROR]`, err);
 		}

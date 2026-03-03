@@ -16,6 +16,8 @@ npx wrangler@latest d1 migrations apply
 ## For Development
 
 ```
+npx wrangler@latest d1 execute db-derbent --file './db/destroy.sql' --local
+
 npx wrangler@latest d1 execute db-derbent --file './db/schema.sql' --local
 npx wrangler@latest d1 execute db-derbent --file './db/schema.sql' --remote // DO NOT RUN, JUST FOR INFORMATION
 

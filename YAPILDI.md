@@ -13,3 +13,6 @@
 - CSRF Protection
 - Magic Links
 - Session Hijacking Prevention
+- Log Out Everywhere / Password Reset Invalidation
+- Audit Logging
+- Rate Limiting with Email
