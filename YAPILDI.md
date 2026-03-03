@@ -13,6 +13,7 @@
 - Log Out Everywhere / Password Reset Invalidation
 - Audit Logging
 - Rate Limiting with Email
+- Logout All with Email
 
 # DONE, NEEDS TO BE CHECKED
 

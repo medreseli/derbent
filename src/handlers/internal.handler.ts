@@ -19,14 +19,23 @@ export class InternalHandler {
 		// Fallback to SSO cookie if app specific not found
 		if (!sessionId && appId !== 'sso') sessionId = getCookie(c, 'session_sso');
 
-		if (!sessionId) return c.text('Unauthorized', 401);
+		if (!sessionId) {
+			c.header('Cache-Control', 'no-store');
+			return c.text('Unauthorized', 401);
+		}
 
 		try {
 			const session = await authService.verifySession(sessionId, appId, clientIp, clientUA);
+
+			// Cache verification result for 1 minute to reduce D1/KV load from frequent internal requests
+			c.header('Cache-Control', 'private, max-age=60');
+
 			return c.json(session);
 		} catch (err) {
+			c.header('Cache-Control', 'no-store');
 			const status = err instanceof AppError ? err.status : 500;
-			return c.text(err instanceof Error ? err.message : 'Error', status);
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.text(msg, status);
 		}
 	}
 
@@ -47,7 +56,8 @@ export class InternalHandler {
 			return c.json({ success: true });
 		} catch (err) {
 			const status = err instanceof AppError ? err.status : 500;
-			return c.text(err instanceof Error ? err.message : 'Error', status);
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.text(msg, status);
 		}
 	}
 }

@@ -288,8 +288,8 @@ export class AuthService {
 		});
 	}
 
-	async requestPasswordReset(email: string, ip: string, userAgent: string): Promise<void> {
-		const user = await this.userRepo.findByEmailAndApp(email, 'sso');
+	async requestPasswordReset(email: string, appId: string, ip: string, userAgent: string): Promise<void> {
+		const user = await this.userRepo.findByEmailAndApp(email, appId);
 
 		// Security: Always respond with success to prevent email enumeration
 		// But we can log the attempt internally
@@ -299,7 +299,7 @@ export class AuthService {
 			userId: user?.id || null, // null if user doesn't exist
 			ip,
 			userAgent,
-			details: { userExists: !!user },
+			details: { appId, userExists: !!user },
 		});
 
 		if (!user) return;
@@ -309,7 +309,7 @@ export class AuthService {
 		await this.emailService.sendPasswordResetEmail(email, token);
 	}
 
-	async resetPassword(token: string, newPassword: string, ip: string, userAgent: string): Promise<void> {
+	async resetPassword(token: string, newPassword: string, ip: string, userAgent: string): Promise<string> {
 		const userId = await this.tokenRepo.getUserIdFromResetToken(token);
 		if (!userId) {
 			await this.auditLogRepo.log({
@@ -320,6 +320,9 @@ export class AuthService {
 			});
 			throw new AppError('Reset link is invalid or has expired.', 400);
 		}
+
+		const user = await this.userRepo.findById(userId);
+		if (!user) throw new AppError('User not found.', 400);
 
 		const phash = await hashPassword(newPassword);
 		await this.userRepo.updatePassword(userId, phash);
@@ -332,6 +335,8 @@ export class AuthService {
 			ip,
 			userAgent,
 		});
+
+		return user.app;
 	}
 
 	async requestMagicLink(email: string, appId: string, redirect: string, ip: string, userAgent: string): Promise<void> {

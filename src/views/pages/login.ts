@@ -19,6 +19,7 @@ export const loginPage = (
 	const registerLink = `/register?${qs}`;
 	const magicLink = `/magic-link?${qs}`;
 	const githubLogin = `/auth/github?${qs}`;
+	const forgotLink = `/forgot-password?${qs}`;
 
 	const appName = appId === 'sso' ? 'Derbent' : appId;
 
@@ -57,7 +58,7 @@ export const loginPage = (
 				<div class="form-group">
 					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
 						<label for="password" style="margin-bottom: 0;">Password</label>
-						<a href="/forgot-password" style="font-size: 0.8rem; color: var(--text-muted);">Forgot?</a>
+						<a href="${forgotLink}" style="font-size: 0.8rem; color: var(--text-muted);">Forgot?</a>
 					</div>
 					<input type="password" id="password" name="password" placeholder="••••••••" required />
 				</div>

@@ -153,7 +153,7 @@ app.post('/logout', async (c) => {
 
 ### Internal Endpoint (Service Binding Only)
 
-#### `GET /verify`
+#### `GET /internal/verify`
 
 - **Headers:** Must include the `Cookie` header from the original request.
 - **Query Params:** `app_id` (The app requesting verification).
@@ -164,6 +164,29 @@ app.post('/logout', async (c) => {
   4.  If missing, return `401`.
   5.  **Authorization Check:** Ensure `session.appId` matches query param `app_id` (or session is `sso`).
   6.  If valid, return `200 OK` with JSON body of user details.
+
+#### ⚠️ Best Practice: Caching Verification
+
+Service Bindings have no network latency, but hitting `/internal/verify` on every request still consumes CPU time and triggers KV/D1 reads.
+
+**Requirement for consuming apps:** The app consuming the verification (e.g., `geveze`) should cache the validation result in memory (or using Cloudflare's Cache API) for 1-5 minutes to reduce load on Derbent.
+
+Derbent facilitates this by sending a `Cache-Control: private, max-age=60` header on successful verifications.
+
+Example in a consuming worker:
+
+```typescript
+const cache = caches.default;
+let response = await cache.match(verifyRequest);
+
+if (!response) {
+	response = await env.DERBENT_SERVICE.fetch(verifyRequest);
+	if (response.ok) {
+		// Cache the valid session for 60 seconds
+		await cache.put(verifyRequest, response.clone());
+	}
+}
+```
 
 ## 4. Account Type Logic (SSO vs. App-Level)
 

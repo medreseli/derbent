@@ -64,7 +64,10 @@ export class AuthHandler {
 		const csrfToken = c.get('csrfToken');
 		const { appId, redirect } = getParams(c);
 		const githubClientId = c.env.GITHUB_CLIENT_ID;
-		return c.html(loginPage(appId, redirect, csrfToken, undefined, undefined, githubClientId));
+		const errorParam = c.req.query('error');
+		const errorMsg = errorParam === 'github_failed' ? 'GitHub authentication failed. Please try again.' : undefined;
+
+		return c.html(loginPage(appId, redirect, csrfToken, errorMsg, undefined, githubClientId));
 	}
 
 	static async renderRegister(c: Context<HonoEnv>) {
@@ -118,8 +121,8 @@ export class AuthHandler {
 				await authService.requestNewVerification(result.output.email as string, appId, ip, userAgent);
 				return c.redirect(`/verify-pending?app_id=${appId}`);
 			}
-			const msg = err instanceof AppError ? err.message : 'Login failed';
-			const status = err instanceof AppError ? err.status : 401;
+			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
+			const status = err instanceof AppError ? err.status : 500;
 
 			return c.html(loginPage(appId, redirect, c.get('csrfToken'), msg), status);
 		}
@@ -146,7 +149,7 @@ export class AuthHandler {
 			console.error(`[REGISTER ERROR]`, err);
 
 			let status: ContentfulStatusCode = 500;
-			let msg = 'Registration failed';
+			let msg = 'An unexpected system error occurred. Please try again later.';
 
 			if (err instanceof AppError) {
 				msg = err.message;
@@ -173,8 +176,9 @@ export class AuthHandler {
 			return c.html(loginPage('sso', '/', csrfToken, undefined, 'Email verified successfully! You can now log in.'));
 		} catch (err) {
 			console.error(`[VERIFY EMAIL ERROR]`, err);
-			const msg = err instanceof AppError ? err.message : 'Verification failed.';
-			return c.html(loginPage('sso', '/', csrfToken, msg), 400);
+			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
+			const status = err instanceof AppError ? err.status : 500;
+			return c.html(loginPage('sso', '/', csrfToken, msg), status);
 		}
 	}
 
@@ -256,18 +260,20 @@ export class AuthHandler {
 
 	static async renderForgot(c: Context<HonoEnv>) {
 		const csrfToken = c.get('csrfToken');
-		return c.html(forgotPasswordPage(csrfToken));
+		const { appId, redirect } = getParams(c);
+		return c.html(forgotPasswordPage(csrfToken, appId, redirect));
 	}
 
 	static async handleForgot(c: Context<HonoEnv>) {
 		const formData = await c.req.parseBody();
 		const { ip, userAgent } = getClientInfo(c);
+		const { appId, redirect } = getParams(c);
 		const result = v.safeParse(ForgotPasswordSchema, formData);
 
 		if (result.success) {
 			try {
 				// Pass IP/UA
-				await c.get('authService').requestPasswordReset(result.output.email, ip, userAgent);
+				await c.get('authService').requestPasswordReset(result.output.email, appId, ip, userAgent);
 			} catch (err) {
 				console.error(`[FORGOT PASSWORD ERROR]`, err);
 			}
@@ -275,7 +281,7 @@ export class AuthHandler {
 			console.error(`[FORGOT PASSWORD VALIDATION ERROR]`, result.issues);
 		}
 		const csrfToken = c.get('csrfToken');
-		return c.html(forgotPasswordPage(csrfToken, undefined, true));
+		return c.html(forgotPasswordPage(csrfToken, appId, redirect, undefined, true));
 	}
 
 	static async renderReset(c: Context<HonoEnv>) {
@@ -299,12 +305,13 @@ export class AuthHandler {
 
 		try {
 			// Pass IP/UA
-			await c.get('authService').resetPassword(result.output.token, result.output.password, ip, userAgent);
-			return c.html(loginPage('sso', '/', csrfToken, undefined, 'Password reset successful! You can now log in.'));
+			const app = await c.get('authService').resetPassword(result.output.token, result.output.password, ip, userAgent);
+			return c.html(loginPage(app, '/', csrfToken, undefined, 'Password reset successful! You can now log in.'));
 		} catch (err) {
 			console.error(`[RESET ERROR]`, err);
-			const msg = err instanceof Error ? err.message : 'Reset failed';
-			return c.html(resetPasswordPage(result.output.token, csrfToken, msg), 400);
+			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
+			const status = err instanceof AppError ? err.status : 500;
+			return c.html(resetPasswordPage(result.output.token, csrfToken, msg), status);
 		}
 	}
 
@@ -359,8 +366,9 @@ export class AuthHandler {
 			return c.redirect(redirect);
 		} catch (err) {
 			console.error(`[VERIFY MAGIC LINK ERROR]`, err);
-			const msg = err instanceof AppError ? err.message : 'Magic link sign-in failed.';
-			return c.html(loginPage(appId, redirect, csrfToken, msg), 401);
+			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
+			const status = err instanceof AppError ? err.status : 500;
+			return c.html(loginPage(appId, redirect, csrfToken, msg), status);
 		}
 	}
 
@@ -377,11 +385,19 @@ export class AuthHandler {
 		const { ip, userAgent } = getClientInfo(c);
 		const authService = c.get('authService');
 
-		if (!code || !state) return c.redirect('/login');
+		let appId = 'sso';
+		let redirect = '/';
+		if (state) {
+			try {
+				const parsed = JSON.parse(atob(state));
+				appId = parsed.appId || 'sso';
+				redirect = parsed.redirect || '/';
+			} catch (e) {}
+		}
+
+		if (!code || !state) return c.redirect(`/login?app_id=${appId}&redirect=${encodeURIComponent(redirect)}`);
 
 		try {
-			const { appId, redirect } = JSON.parse(atob(state));
-
 			// 1. Exchange Code for Token
 			const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
 				method: 'POST',
@@ -414,7 +430,8 @@ export class AuthHandler {
 			return c.redirect(redirect);
 		} catch (err) {
 			console.error('[GitHub Callback Error]', err);
-			return c.redirect('/login?error=github_failed');
+			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_failed' }).toString();
+			return c.redirect(`/login?${qs}`);
 		}
 	}
 }
