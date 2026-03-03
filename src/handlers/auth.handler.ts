@@ -36,14 +36,12 @@ export class AuthHandler {
 		const csrfToken = c.get('csrfToken');
 
 		let session = null;
-		let isAdmin = false;
 
 		for (const app of ALLOWED_APPS) {
 			const sessionId = getCookie(c, `session_${app}`);
 			if (sessionId) {
 				try {
 					session = await authService.verifySession(sessionId, app);
-					isAdmin = session.email === c.env.ADMIN_EMAIL;
 					break;
 				} catch (err) {
 					// Cookie exists but is invalid/expired. Ignore and check the next app.
@@ -51,7 +49,7 @@ export class AuthHandler {
 			}
 		}
 
-		return c.html(landingPage(csrfToken, session, isAdmin));
+		return c.html(landingPage(csrfToken, session));
 	}
 
 	static async renderLogin(c: Context<HonoEnv>) {

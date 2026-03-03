@@ -22,7 +22,6 @@
 	"vars": {
 		"NIYET": "yayma",
 		"BASE_URL": "https://derbent.zerdalu.com",
-		"ADMIN_EMAIL": "admin@zerdalu.com",
 		"RESEND_DOMAIN": "destek.zerdalu.com",
 		"LOG_LEVEL": "warn",
 	},

@@ -2,11 +2,10 @@ import { html } from 'hono/html';
 import { layout } from '../components/layout';
 import { Session } from '../../types/session';
 
-export const landingPage = (csrfToken: string, session?: Session | null, isAdmin: boolean = false) => {
+export const landingPage = (csrfToken: string, session?: Session | null) => {
 	let actionArea;
 
 	if (session) {
-		// Render state for logged-in users
 		actionArea = html`
 			<div style="text-align: center; margin-bottom: 2rem;">
 				<span
@@ -17,8 +16,6 @@ export const landingPage = (csrfToken: string, session?: Session | null, isAdmin
 			</div>
 
 			<div style="display: flex; flex-direction: column; gap: 0.75rem;">
-				${isAdmin ? html`<a href="/admin" class="btn btn-primary">Admin Dashboard</a>` : ''}
-
 				<form method="POST" action="/logout?app_id=${session.appId}&redirect=/" style="width: 100%; margin: 0;">
 					<input type="hidden" name="csrf_token" value="${csrfToken}" />
 					<button
@@ -31,7 +28,6 @@ export const landingPage = (csrfToken: string, session?: Session | null, isAdmin
 			</div>
 		`;
 	} else {
-		// Render state for guests
 		actionArea = html`
 			<div class="btn-group">
 				<a href="/login?app_id=sso" class="btn btn-primary">Log in</a>

@@ -1,20 +1,18 @@
 import { Hono } from 'hono';
-import { secureHeaders } from 'hono/secure-headers';
 import { html } from 'hono/html';
-import { layout } from './views/components/layout';
+import { secureHeaders } from 'hono/secure-headers';
 import { AuthHandler } from './handlers/auth.handler';
 import { InternalHandler } from './handlers/internal.handler';
-import { SessionRepository } from './repositories/session.repository';
-import { UserRepository } from './repositories/user.repository';
-import { TokenRepository } from './repositories/token.repository';
-import { EmailService } from './services/email.service';
-import { AuthService } from './services/auth.service';
-import { HonoEnv } from './types/hono-env';
 import { csrfOnGet, csrfOnPost } from './middleware/csrf.middleware';
 import { rateLimit } from './middleware/rate-limit.middleware';
-import { adminAuth } from './middleware/admin-auth.middleware';
-import { AdminHandler } from './handlers/admin.handler';
+import { SessionRepository } from './repositories/session.repository';
+import { TokenRepository } from './repositories/token.repository';
+import { UserRepository } from './repositories/user.repository';
+import { AuthService } from './services/auth.service';
+import { EmailService } from './services/email.service';
+import { HonoEnv } from './types/hono-env';
 import { Logger } from './utils/logger';
+import { layout } from './views/components/layout';
 
 const app = new Hono<HonoEnv>();
 
@@ -77,8 +75,5 @@ app.post('/reset-password', csrfOnPost(), AuthHandler.handleReset);
 app.get('/magic-link', csrfOnGet(), AuthHandler.renderMagicLink);
 app.post('/magic-link', rateLimit(), csrfOnPost(), AuthHandler.handleMagicLinkRequest);
 app.get('/verify-magic-link', csrfOnGet(), AuthHandler.handleVerifyMagicLink);
-
-// Admin Routes
-app.get('/admin', adminAuth(), AdminHandler.renderDashboard);
 
 export default app;
