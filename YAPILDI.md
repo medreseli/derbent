@@ -1,6 +1,7 @@
 # DONE
 
 - Routing with Hono
+- Database Migrations
 
 # DONE, NEEDS TO BE CHECKED
 
@@ -11,3 +12,4 @@
 - Security Headers
 - CSRF Protection
 - Magic Links
+- Session Hijacking Prevention

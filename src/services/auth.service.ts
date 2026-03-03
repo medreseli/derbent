@@ -14,7 +14,7 @@ export class AuthService {
 		private emailService: EmailService,
 	) {}
 
-	async login(email: string, password: string, appId: string): Promise<{ sessionId: string; app: string }> {
+	async login(email: string, password: string, appId: string, ip: string, userAgent: string): Promise<{ sessionId: string; app: string }> {
 		const user = await this.userRepo.findForLogin(email, appId);
 
 		let isPasswordVerified = false;
@@ -28,6 +28,13 @@ export class AuthService {
 			throw new AppError('EMAIL_NOT_VERIFIED', 403);
 		}
 
+		let userMetadata = {};
+		try {
+			userMetadata = user.metadata ? JSON.parse(user.metadata) : {};
+		} catch (e) {
+			console.error('Failed to parse user metadata', e);
+		}
+
 		const sessionId = crypto.randomUUID();
 		const session: Session = {
 			userId: user.id,
@@ -35,6 +42,9 @@ export class AuthService {
 			role: 'user',
 			appId: user.app,
 			createdAt: Date.now(),
+			ip,
+			userAgent,
+			data: userMetadata,
 		};
 
 		await this.sessionRepo.create(sessionId, session);
@@ -99,13 +109,27 @@ export class AuthService {
 		await this.sessionRepo.delete(sessionId);
 	}
 
-	async verifySession(sessionId: string, requiredAppId: string): Promise<Session> {
+	async verifySession(sessionId: string, requiredAppId: string, currentIp?: string, currentUserAgent?: string): Promise<Session> {
 		const session = await this.sessionRepo.get(sessionId);
 
 		if (!session) throw new AppError('Session not found', 401);
 
 		if (session.appId !== requiredAppId && session.appId !== 'sso') {
 			throw new AppError('Forbidden', 403);
+		}
+
+		// If the User Agent changes, it's very suspicious (e.g., Session stolen from Chrome and used in Curl)
+		if (currentUserAgent && session.userAgent !== currentUserAgent) {
+			// You might want to log this event in the future audit logs
+			console.warn(`[Security] Session Hijack Attempt? UA Mismatch. stored="${session.userAgent}" current="${currentUserAgent}"`);
+			throw new AppError('Session invalid (Client Mismatch)', 401);
+		}
+
+		// We don't throw an error here (to avoid the mobile/wifi switch issue),
+		// but we log it. In a strict mode, you would uncomment the error throw.
+		if (currentIp && session.ip !== currentIp) {
+			console.info(`[Security] IP Changed for user ${session.email}. stored=${session.ip} current=${currentIp}`);
+			// Strict Mode: throw new AppError('Session invalid (IP Changed)', 401);
 		}
 
 		return session;
@@ -144,7 +168,7 @@ export class AuthService {
 		await this.emailService.sendMagicLinkEmail(email, token, appId, redirect);
 	}
 
-	async verifyMagicLink(token: string, requiredAppId: string): Promise<{ sessionId: string; app: string }> {
+	async verifyMagicLink(token: string, requiredAppId: string, ip: string, userAgent: string): Promise<{ sessionId: string; app: string }> {
 		const userId = await this.tokenRepo.getUserIdFromMagicLinkToken(token);
 		if (!userId) {
 			throw new AppError('Magic link is invalid or has expired.', 400);
@@ -155,18 +179,22 @@ export class AuthService {
 			throw new AppError('User not found.', 400);
 		}
 
-		// Verify the user is allowed to access the requested app context
 		if (user.app !== requiredAppId && user.app !== 'sso') {
 			throw new AppError('Forbidden: You do not have access to this app.', 403);
 		}
 
-		// Magic links inherently verify the email address since they require inbox access
 		if (user.email_verified === 0) {
 			await this.userRepo.markEmailVerified(user.id);
 		}
 
-		// Ensure one-time use
 		await this.tokenRepo.deleteMagicLinkToken(token);
+
+		let userMetadata = {};
+		try {
+			userMetadata = user.metadata ? JSON.parse(user.metadata) : {};
+		} catch (e) {
+			console.error('Failed to parse user metadata', e);
+		}
 
 		const sessionId = crypto.randomUUID();
 		const session: Session = {
@@ -175,6 +203,9 @@ export class AuthService {
 			role: 'user',
 			appId: user.app,
 			createdAt: Date.now(),
+			ip,
+			userAgent,
+			data: userMetadata,
 		};
 
 		await this.sessionRepo.create(sessionId, session);

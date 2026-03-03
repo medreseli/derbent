@@ -30,10 +30,18 @@ function getParams(c: Context) {
 	return parsed.success ? { redirect: parsed.output.redirect, appId: parsed.output.app_id } : { redirect: '/', appId: 'sso' };
 }
 
+function getClientInfo(c: Context) {
+	return {
+		ip: c.req.header('cf-connecting-ip') || 'unknown',
+		userAgent: c.req.header('user-agent') || 'unknown',
+	};
+}
+
 export class AuthHandler {
 	static async index(c: Context<HonoEnv>) {
 		const authService = c.get('authService');
 		const csrfToken = c.get('csrfToken');
+		const { ip, userAgent } = getClientInfo(c);
 
 		let session = null;
 
@@ -41,7 +49,7 @@ export class AuthHandler {
 			const sessionId = getCookie(c, `session_${app}`);
 			if (sessionId) {
 				try {
-					session = await authService.verifySession(sessionId, app);
+					session = await authService.verifySession(sessionId, app, ip, userAgent);
 					break;
 				} catch (err) {
 					// Cookie exists but is invalid/expired. Ignore and check the next app.
@@ -70,9 +78,10 @@ export class AuthHandler {
 	}
 
 	static async handleLogin(c: Context<HonoEnv>) {
+		const logger = c.get('logger');
 		const { appId, redirect } = getParams(c);
 		const authService = c.get('authService');
-		const logger = c.get('logger');
+		const { ip, userAgent } = getClientInfo(c);
 
 		const formData = await c.req.parseBody();
 		const result = v.safeParse(LoginSchema, formData);
@@ -83,7 +92,13 @@ export class AuthHandler {
 		}
 
 		try {
-			const { sessionId, app } = await authService.login(result.output.email as string, result.output.password as string, appId);
+			const { sessionId, app } = await authService.login(
+				result.output.email as string,
+				result.output.password as string,
+				appId,
+				ip,
+				userAgent,
+			);
 
 			const cookieOpts = getCookieOptions(c);
 			cookieOpts.maxAge = 86400; // 24 hours
@@ -260,13 +275,14 @@ export class AuthHandler {
 		const { appId, redirect } = getParams(c);
 		const authService = c.get('authService');
 		const csrfToken = c.get('csrfToken');
+		const { ip, userAgent } = getClientInfo(c);
 
 		if (!token) {
 			return c.html(loginPage(appId, redirect, csrfToken, 'No magic link token provided.'));
 		}
 
 		try {
-			const { sessionId, app } = await authService.verifyMagicLink(token, appId);
+			const { sessionId, app } = await authService.verifyMagicLink(token, appId, ip, userAgent);
 
 			const cookieOpts = getCookieOptions(c);
 			cookieOpts.maxAge = 86400;
