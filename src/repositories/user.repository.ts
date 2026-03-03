@@ -32,8 +32,8 @@ export class UserRepository {
 
 	async create(user: User): Promise<void> {
 		await this.db
-			.prepare('INSERT INTO users (id, app, email, phash, metadata, email_verified) VALUES (?, ?, ?, ?, ?, ?)')
-			.bind(user.id, user.app, user.email, user.phash, user.metadata, user.email_verified)
+			.prepare('INSERT INTO users (id, app, email, phash, metadata, email_verified, token_version) VALUES (?, ?, ?, ?, ?, ?, ?)')
+			.bind(user.id, user.app, user.email, user.phash, user.metadata, user.email_verified, user.token_version)
 			.run();
 	}
 
@@ -42,6 +42,19 @@ export class UserRepository {
 	}
 
 	async updatePassword(userId: string, phash: string): Promise<void> {
-		await this.db.prepare('UPDATE users SET phash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(phash, userId).run();
+		await this.db
+			.prepare('UPDATE users SET phash = ?, token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+			.bind(phash, userId)
+			.run();
+	}
+
+	async incrementTokenVersion(userId: string): Promise<number> {
+		const result = await this.db
+			.prepare('UPDATE users SET token_version = token_version + 1 WHERE id = ? RETURNING token_version')
+			.bind(userId)
+			.first<{ token_version: number }>();
+
+		if (!result) throw new Error('User not found during version increment');
+		return result.token_version;
 	}
 }

@@ -5,12 +5,14 @@ import { UserRepository } from '../repositories/user.repository';
 import { TokenRepository } from '../repositories/token.repository';
 import { EmailService } from './email.service';
 import { AppError } from '../types/errors';
+import { UserTokenVersionRepository } from '../repositories/user-token-version.repository';
 
 export class AuthService {
 	constructor(
 		private userRepo: UserRepository,
 		private sessionRepo: SessionRepository,
 		private tokenRepo: TokenRepository,
+		private userTokenVersionRepo: UserTokenVersionRepository,
 		private emailService: EmailService,
 	) {}
 
@@ -28,6 +30,8 @@ export class AuthService {
 			throw new AppError('EMAIL_NOT_VERIFIED', 403);
 		}
 
+		await this.userTokenVersionRepo.setUserVersion(user.id, user.token_version);
+
 		let userMetadata = {};
 		try {
 			userMetadata = user.metadata ? JSON.parse(user.metadata) : {};
@@ -44,6 +48,7 @@ export class AuthService {
 			createdAt: Date.now(),
 			ip,
 			userAgent,
+			tokenVersion: user.token_version,
 			data: userMetadata,
 		};
 
@@ -74,6 +79,7 @@ export class AuthService {
 			phash,
 			metadata: '{}',
 			email_verified: 0,
+			token_version: 1,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		});
@@ -118,21 +124,44 @@ export class AuthService {
 			throw new AppError('Forbidden', 403);
 		}
 
-		// If the User Agent changes, it's very suspicious (e.g., Session stolen from Chrome and used in Curl)
+		// --- Security Checks ---
+
+		// 1. User Agent (Hijack Protection)
 		if (currentUserAgent && session.userAgent !== currentUserAgent) {
-			// You might want to log this event in the future audit logs
 			console.warn(`[Security] Session Hijack Attempt? UA Mismatch. stored="${session.userAgent}" current="${currentUserAgent}"`);
 			throw new AppError('Session invalid (Client Mismatch)', 401);
 		}
 
-		// We don't throw an error here (to avoid the mobile/wifi switch issue),
-		// but we log it. In a strict mode, you would uncomment the error throw.
+		// 2. IP Address (Logging only for now)
 		if (currentIp && session.ip !== currentIp) {
 			console.info(`[Security] IP Changed for user ${session.email}. stored=${session.ip} current=${currentIp}`);
-			// Strict Mode: throw new AppError('Session invalid (IP Changed)', 401);
+		}
+
+		// 3. Token Version (Global Revocation Check)
+		// Try to get version from fast KV cache
+		let currentVersion = await this.userTokenVersionRepo.getUserVersion(session.userId);
+
+		// Cache miss? Fetch from D1 (slower, but happens only once per cache expiry)
+		if (currentVersion === null) {
+			const user = await this.userRepo.findById(session.userId);
+			if (!user) throw new AppError('User not found', 401);
+			currentVersion = user.token_version;
+			// Fill cache
+			await this.userTokenVersionRepo.setUserVersion(user.id, currentVersion);
+		}
+
+		// If session version < current version, the session is revoked
+		if (session.tokenVersion !== currentVersion) {
+			console.warn(`[Security] Revoked session access attempt for ${session.email} (v${session.tokenVersion} < v${currentVersion})`);
+			throw new AppError('Session expired (Revoked)', 401);
 		}
 
 		return session;
+	}
+
+	async logoutAll(userId: string): Promise<void> {
+		const newVersion = await this.userRepo.incrementTokenVersion(userId);
+		await this.userTokenVersionRepo.setUserVersion(userId, newVersion);
 	}
 
 	async requestPasswordReset(email: string): Promise<void> {
@@ -154,6 +183,7 @@ export class AuthService {
 
 		const phash = await hashPassword(newPassword);
 		await this.userRepo.updatePassword(userId, phash);
+		await this.userTokenVersionRepo.clearUserVersion(userId);
 		await this.tokenRepo.deletePasswordResetToken(token);
 	}
 
@@ -189,6 +219,8 @@ export class AuthService {
 
 		await this.tokenRepo.deleteMagicLinkToken(token);
 
+		await this.userTokenVersionRepo.setUserVersion(user.id, user.token_version);
+
 		let userMetadata = {};
 		try {
 			userMetadata = user.metadata ? JSON.parse(user.metadata) : {};
@@ -205,6 +237,7 @@ export class AuthService {
 			createdAt: Date.now(),
 			ip,
 			userAgent,
+			tokenVersion: user.token_version,
 			data: userMetadata,
 		};
 

@@ -4,6 +4,7 @@ export interface User {
 	email: string;
 	email_verified: number; // SQLite uses 0/1 for booleans; 0 = False, 1 = True
 	phash: string;
+	token_version: number;
 	metadata: string;
 	created_at: string;
 	updated_at: string;
