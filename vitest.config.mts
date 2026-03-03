@@ -7,5 +7,6 @@ export default defineWorkersConfig({
 				wrangler: { configPath: './wrangler.jsonc' },
 			},
 		},
+		setupFiles: ['./test/setup.ts'], // This runs before test files
 	},
 });

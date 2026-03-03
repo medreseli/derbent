@@ -118,7 +118,9 @@ export class AuthHandler {
 				return c.redirect(`/verify-pending?app_id=${appId}`);
 			}
 			const msg = err instanceof AppError ? err.message : 'Login failed';
-			return c.html(loginPage(appId, redirect, c.get('csrfToken'), msg), 401);
+			const status = err instanceof AppError ? err.status : 401;
+
+			return c.html(loginPage(appId, redirect, c.get('csrfToken'), msg), status);
 		}
 	}
 

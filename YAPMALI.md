@@ -5,11 +5,14 @@
 
 # YAP
 
-- **Session Revocation:** Right now, users can log out of their _current_ session. But what if they want to "Log out of all devices"? You need a way to track which sessions belong to which user. You could store a list of active `sessionId`s in the user's D1 `metadata` or use KV prefixes to find and delete them.
 - **OAuth / Social Login:** Adding "Login with GitHub" or "Login with Google" would make this a true SSO provider. You would handle the OAuth callback and map the social email to your `users` table.
 
 - **Caching Verification:** Your service bindings hit `/verify` on every request. This is fast on Cloudflare, but costs CPU time.
   - _Fix:_ The app consuming the verification (e.g., `geveze`) should cache the validation result in memory for 1-5 minutes to reduce load on Derbent.
+
+- Logout All with Email
+  Current logoutall only works for an account that has multiple sessions from different devices, browsers etc.
+  We should also implement logoutall with email functionality so that every session related to that email can be invalidated.
 
 ---
 

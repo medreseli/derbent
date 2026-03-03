@@ -63,6 +63,7 @@ app.get('/register', csrfOnGet(), AuthHandler.renderRegister);
 app.post('/login', rateLimit(), csrfOnPost(), AuthHandler.handleLogin);
 app.post('/register', rateLimit(), csrfOnPost(), AuthHandler.handleRegister);
 app.post('/logout', rateLimit(), csrfOnPost(), AuthHandler.handleLogout);
+app.post('/logout-all', rateLimit(), csrfOnPost(), AuthHandler.handleLogoutAll);
 
 app.get('/internal/verify', InternalHandler.verify);
 app.post('/internal/logout', InternalHandler.logout);
