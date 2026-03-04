@@ -21,9 +21,11 @@
 	],
 	"vars": {
 		"APP_ENV": "production",
-		"BASE_URL": "https://derbent.zerdalu.com",
-		"RESEND_DOMAIN": "destek.zerdalu.com",
 		"LOG_LEVEL": "warn",
+		"APP_NAME": "Derbent Auth",
+		"BASE_URL": "https://derbent.zerdalu.com",
+		"COOKIE_DOMAIN": ".zerdalu.com",
+		"RESEND_DOMAIN": "destek.zerdalu.com",
 		"GITHUB_CLIENT_ID": "",
 	},
 	"kv_namespaces": [

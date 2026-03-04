@@ -2,11 +2,12 @@ export class EmailService {
 	private fromEmail: string;
 
 	constructor(
+		private appName: string,
+		private baseUrl: string,
 		private resendApiKey: string,
 		private resendDomain: String,
-		private baseUrl: string = 'https://derbent.zerdalu.com',
 	) {
-		this.fromEmail = `derbent@${this.resendDomain}`;
+		this.fromEmail = `noreply@${this.resendDomain}`;
 	}
 
 	async sendVerificationEmail(to: string, token: string): Promise<void> {
@@ -75,7 +76,7 @@ export class EmailService {
 			body: JSON.stringify({
 				from: `Derbent <${this.fromEmail}>`,
 				to,
-				subject: 'Sign in to your account',
+				subject: `Sign in to ${this.appName}`,
 				html: `
 					<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
 						<h2>Sign in securely</h2>

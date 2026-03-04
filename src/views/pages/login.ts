@@ -2,6 +2,7 @@ import { html } from 'hono/html';
 import { layout } from '../components/layout';
 
 export const loginPage = (
+	appName: string,
 	appId: string,
 	redirect: string,
 	csrfToken: string,
@@ -20,8 +21,6 @@ export const loginPage = (
 	const magicLink = `/magic-link?${qs}`;
 	const githubLogin = `/auth/github?${qs}`;
 	const forgotLink = `/forgot-password?${qs}`;
-
-	const appName = appId === 'sso' ? 'Derbent' : appId;
 
 	return layout(
 		`Welcome back`,

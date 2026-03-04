@@ -2,7 +2,7 @@ import { html } from 'hono/html';
 import { layout } from '../components/layout';
 import { Session } from '../../types/session';
 
-export const landingPage = (csrfToken: string, session?: Session | null) => {
+export const landingPage = (appName: string, csrfToken: string, session?: Session | null) => {
 	let actionArea;
 
 	if (session) {
@@ -51,7 +51,7 @@ export const landingPage = (csrfToken: string, session?: Session | null) => {
 	}
 
 	return layout(
-		`Derbent`,
+		appName,
 		html`
 			<p class="lead">A derbent was a fortified pass &mdash; a narrow gate between worlds, guarded and deliberate.</p>
 			<p class="lead" style="margin-bottom: 2rem;">

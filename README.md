@@ -28,6 +28,8 @@ Create a `.dev.vars` file for development. For production, use `wrangler secret`
 # APP_ENV: 'development' or 'production'
 APP_ENV=development
 LOG_LEVEL=debug
+APP_NAME=Derbent Auth
+COOKIE_DOMAIN=localhost
 BASE_URL=http://localhost:8787
 RESEND_API_KEY=re_your_api_key_here
 RESEND_DOMAIN=your-verified-domain.com

@@ -38,7 +38,7 @@ app.use('*', async (c, next) => {
 	const auditLogRepo = new AuditLogRepository(c.env.DB);
 	const loginAttemptRepo = new LoginAttemptRepository(c.env.KV);
 
-	const emailService = new EmailService(c.env.RESEND_API_KEY, c.env.RESEND_DOMAIN, c.env.BASE_URL);
+	const emailService = new EmailService(c.env.APP_NAME, c.env.BASE_URL, c.env.RESEND_API_KEY, c.env.RESEND_DOMAIN);
 
 	const authService = new AuthService(userRepo, sessionRepo, tokenRepo, userTokenVersionRepo, emailService, auditLogRepo, loginAttemptRepo);
 	c.set('authService', authService);
