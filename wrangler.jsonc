@@ -24,6 +24,7 @@
 		"LOG_LEVEL": "warn",
 		"APP_NAME": "Derbent Auth",
 		"BASE_URL": "https://derbent.zerdalu.com",
+		"PBKDF2_ITERATIONS": "100000",
 		"AUDIT_LOG_RETENTION_DAYS": "30",
 		"COOKIE_DOMAIN": ".zerdalu.com",
 		"RESEND_DOMAIN": "destek.zerdalu.com",
@@ -41,6 +42,22 @@
 			"database_id": "59207b81-f785-4e47-928a-57aa3b2c91f7",
 		},
 	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "EMAIL_QUEUE",
+				"queue": "derbent-email-queue",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "derbent-email-queue",
+				"max_batch_size": 10,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+			},
+		],
+	},
 	"ratelimits": [
 		{
 			"name": "AUTH_LIMITER",

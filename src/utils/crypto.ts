@@ -1,4 +1,4 @@
-export async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string, iterations: number): Promise<string> {
 	const salt = crypto.getRandomValues(new Uint8Array(16));
 	const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
 
@@ -6,7 +6,7 @@ export async function hashPassword(password: string): Promise<string> {
 		{
 			name: 'PBKDF2',
 			salt: salt,
-			iterations: 100000,
+			iterations: iterations,
 			hash: 'SHA-256',
 		},
 		keyMaterial,
@@ -16,14 +16,22 @@ export async function hashPassword(password: string): Promise<string> {
 	const saltBase64 = bufferToBase64(salt);
 	const hashBase64 = bufferToBase64(hashBuffer);
 
-	return `${saltBase64}:${hashBase64}`;
+	// Format: iterations:salt:hash
+	return `${iterations}:${saltBase64}:${hashBase64}`;
 }
 
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
 	const parts = storedHash.split(':');
-	if (parts.length !== 2) return false;
 
-	const [saltBase64, hashBase64] = parts;
+	// Strict format check: iterations:salt:hash
+	if (parts.length !== 3) {
+		console.error('[Crypto] Invalid hash format. Expected 3 parts.');
+		return false;
+	}
+
+	const iterations = parseInt(parts[0], 10);
+	const saltBase64 = parts[1];
+	const hashBase64 = parts[2];
 	const salt = base64ToBuffer(saltBase64);
 
 	const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
@@ -32,7 +40,7 @@ export async function verifyPassword(password: string, storedHash: string): Prom
 		{
 			name: 'PBKDF2',
 			salt: salt,
-			iterations: 100000,
+			iterations: iterations, // Use the iterations stored in the DB, not the Env var
 			hash: 'SHA-256',
 		},
 		keyMaterial,

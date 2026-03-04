@@ -2,7 +2,6 @@ import { html } from 'hono/html';
 import { layout } from '../components/layout';
 import { Session } from '../../types/session';
 
-// Create a specific interface for the View that expects a resolved URL
 export interface AppViewConfig {
 	id: string;
 	name: string;

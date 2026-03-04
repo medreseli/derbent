@@ -63,3 +63,12 @@ npx wrangler@latest r2 bucket create r2-derbent
 
 
 ```
+
+## Queues
+
+https://developers.cloudflare.com/queues/get-started/
+
+```
+npx wrangler@latest queues create derbent-email-queue
+
+```

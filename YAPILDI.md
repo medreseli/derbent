@@ -14,8 +14,10 @@
 - Audit Logging
 - Rate Limiting with Email
 - Logout All with Email
+- OAuth / Social Login - GitHub
+- Email Resiliency with Cloudflare Queues
+- CPU Limit Risks with PBKDF2 - Iteration count can be set as an env variable so that it can be lowered if needed.
 
 # DONE, NEEDS TO BE CHECKED
 
-- OAuth / Social Login - GitHub
 - Caching Verification

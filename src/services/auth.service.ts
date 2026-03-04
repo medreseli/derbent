@@ -19,6 +19,7 @@ export class AuthService {
 		private emailService: EmailService,
 		private auditLogRepo: AuditLogRepository,
 		private loginAttemptRepo: LoginAttemptRepository,
+		private hashIterations: number,
 	) {}
 
 	private async createSessionForUser(user: any, ip: string, userAgent: string): Promise<string> {
@@ -145,7 +146,7 @@ export class AuthService {
 			if (await this.userRepo.hasAnyAppAccount(email)) throw new AppError('An app-level account already exists for this email.');
 		}
 
-		const phash = await hashPassword(password);
+		const phash = await hashPassword(password, this.hashIterations);
 		const userId = generateUUIDv7();
 
 		await this.userRepo.create({
@@ -326,7 +327,7 @@ export class AuthService {
 		const user = await this.userRepo.findById(userId);
 		if (!user) throw new AppError('User not found.', 400);
 
-		const phash = await hashPassword(newPassword);
+		const phash = await hashPassword(newPassword, this.hashIterations);
 		await this.userRepo.updatePassword(userId, phash);
 		await this.userTokenVersionRepo.clearUserVersion(userId);
 		await this.tokenRepo.deletePasswordResetToken(token);

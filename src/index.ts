@@ -16,6 +16,7 @@ import { layout } from './views/components/layout';
 import { UserTokenVersionRepository } from './repositories/user-token-version.repository';
 import { AuditLogRepository } from './repositories/audit-log.repository';
 import { LoginAttemptRepository } from './repositories/login-attempt.repository';
+import { EmailQueueMessage } from './types/queue';
 
 const app = new Hono<HonoEnv>();
 
@@ -38,9 +39,20 @@ app.use('*', async (c, next) => {
 	const auditLogRepo = new AuditLogRepository(c.env.DB);
 	const loginAttemptRepo = new LoginAttemptRepository(c.env.KV);
 
-	const emailService = new EmailService(c.env.APP_NAME, c.env.BASE_URL, c.env.RESEND_API_KEY, c.env.RESEND_DOMAIN);
+	const emailService = new EmailService(c.env.APP_NAME, c.env.BASE_URL, c.env.RESEND_API_KEY, c.env.RESEND_DOMAIN, c.env.EMAIL_QUEUE);
 
-	const authService = new AuthService(userRepo, sessionRepo, tokenRepo, userTokenVersionRepo, emailService, auditLogRepo, loginAttemptRepo);
+	const hashIterations = parseInt(c.env.PBKDF2_ITERATIONS || '50000', 10);
+
+	const authService = new AuthService(
+		userRepo,
+		sessionRepo,
+		tokenRepo,
+		userTokenVersionRepo,
+		emailService,
+		auditLogRepo,
+		loginAttemptRepo,
+		hashIterations,
+	);
 	c.set('authService', authService);
 
 	await next();
@@ -108,5 +120,24 @@ export default {
 				logger.info(`[CRON] Pruned ${deletedCount} audit logs older than 30 days.`);
 			})(),
 		);
+	},
+
+	// Cloudflare Queue Consumer Handler
+	async queue(batch: MessageBatch<EmailQueueMessage>, env: HonoEnv['Bindings'], ctx: ExecutionContext) {
+		const logger = new Logger(env.LOG_LEVEL || 'info');
+		logger.info(`[QUEUE] Processing batch of ${batch.messages.length} messages`);
+
+		// Instantiate EmailService without the Queue binding (so it actually performs the fetch)
+		const emailService = new EmailService(env.APP_NAME, env.BASE_URL, env.RESEND_API_KEY, env.RESEND_DOMAIN);
+
+		for (const message of batch.messages) {
+			try {
+				await emailService.processMessage(message.body);
+				message.ack();
+			} catch (error) {
+				logger.error(`[QUEUE] Failed to process message ${message.id}`, error);
+				message.retry();
+			}
+		}
 	},
 };

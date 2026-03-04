@@ -1,3 +1,5 @@
+import { EmailQueueMessage } from '../types/queue';
+
 export class EmailService {
 	private fromEmail: string;
 
@@ -5,12 +7,53 @@ export class EmailService {
 		private appName: string,
 		private baseUrl: string,
 		private resendApiKey: string,
-		private resendDomain: String,
+		private resendDomain: string,
+		private queue?: Queue<EmailQueueMessage>,
 	) {
 		this.fromEmail = `noreply@${this.resendDomain}`;
 	}
 
 	async sendVerificationEmail(to: string, token: string): Promise<void> {
+		if (this.queue) {
+			await this.queue.send({ type: 'verify_email', to, token });
+			return;
+		}
+		// Fallback for tests or local execution if queue is not bound
+		await this.processVerificationEmail(to, token);
+	}
+
+	async sendPasswordResetEmail(to: string, token: string): Promise<void> {
+		if (this.queue) {
+			await this.queue.send({ type: 'reset_password', to, token });
+			return;
+		}
+		await this.processPasswordResetEmail(to, token);
+	}
+
+	async sendMagicLinkEmail(to: string, token: string, appId: string, redirect: string): Promise<void> {
+		if (this.queue) {
+			await this.queue.send({ type: 'magic_link', to, token, appId, redirect });
+			return;
+		}
+		await this.processMagicLinkEmail(to, token, appId, redirect);
+	}
+
+	async processMessage(msg: EmailQueueMessage): Promise<void> {
+		switch (msg.type) {
+			case 'verify_email':
+				await this.processVerificationEmail(msg.to, msg.token);
+				break;
+			case 'reset_password':
+				await this.processPasswordResetEmail(msg.to, msg.token);
+				break;
+			case 'magic_link':
+				if (!msg.appId || !msg.redirect) throw new Error('Missing appId or redirect for magic link');
+				await this.processMagicLinkEmail(msg.to, msg.token, msg.appId, msg.redirect);
+				break;
+		}
+	}
+
+	private async processVerificationEmail(to: string, token: string): Promise<void> {
 		const verificationUrl = `${this.baseUrl}/verify-email?token=${token}`;
 
 		const response = await fetch('https://api.resend.com/emails', {
@@ -40,10 +83,10 @@ export class EmailService {
 		}
 	}
 
-	async sendPasswordResetEmail(to: string, token: string): Promise<void> {
+	private async processPasswordResetEmail(to: string, token: string): Promise<void> {
 		const resetUrl = `${this.baseUrl}/reset-password?token=${token}`;
 
-		await fetch('https://api.resend.com/emails', {
+		const response = await fetch('https://api.resend.com/emails', {
 			method: 'POST',
 			headers: {
 				Authorization: `Bearer ${this.resendApiKey}`,
@@ -61,9 +104,14 @@ export class EmailService {
             `,
 			}),
 		});
+
+		if (!response.ok) {
+			const errorData = await response.text();
+			throw new Error(`Email provider error: ${errorData}`);
+		}
 	}
 
-	async sendMagicLinkEmail(to: string, token: string, appId: string, redirect: string): Promise<void> {
+	private async processMagicLinkEmail(to: string, token: string, appId: string, redirect: string): Promise<void> {
 		const qs = new URLSearchParams({ token, app_id: appId, redirect }).toString();
 		const magicLinkUrl = `${this.baseUrl}/verify-magic-link?${qs}`;
 
