@@ -8,6 +8,7 @@ import { AppError } from '../types/errors';
 import { UserTokenVersionRepository } from '../repositories/user-token-version.repository';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { LoginAttemptRepository } from '../repositories/login-attempt.repository';
+import { generateUUIDv7 } from '../utils/uuid';
 
 export class AuthService {
 	constructor(
@@ -28,6 +29,7 @@ export class AuthService {
 			console.error('Failed to parse user metadata', e);
 		}
 
+		// Session IDs remain random UUIDv4s since they are stored in KV, not D1 B-Trees
 		const sessionId = crypto.randomUUID();
 		const session: Session = {
 			userId: user.id,
@@ -103,7 +105,7 @@ export class AuthService {
 
 		if (!user) {
 			// Auto-provision an SSO account for OAuth users if they don't exist
-			const userId = crypto.randomUUID();
+			const userId = generateUUIDv7();
 			await this.userRepo.create({
 				id: userId,
 				app: 'sso',
@@ -144,7 +146,7 @@ export class AuthService {
 		}
 
 		const phash = await hashPassword(password);
-		const userId = crypto.randomUUID();
+		const userId = generateUUIDv7();
 
 		await this.userRepo.create({
 			id: userId,

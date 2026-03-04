@@ -61,7 +61,8 @@ Derbent acts as a sidecar for your other services. Use **Service Bindings** in `
 
 ### Verification Middleware
 
-Every consuming app (e.g., `geveze`) should use the following pattern to verify users, utilizing the Cloudflare Cache API to save on CPU:
+Every consuming app (e.g., `geveze`) should use the following pattern to verify users.
+**Important:** You must pass the end-user's IP and User-Agent using the Derbent-Client-\* headers to maintain audit logging and session hijack protection.
 
 ```typescript
 export async function verifyWithDerbent(c: Context, appId: string) {
@@ -73,8 +74,16 @@ export async function verifyWithDerbent(c: Context, appId: string) {
 		return c.json({ error: 'Unauthorized' }, 401);
 	}
 
+	// Capture end-user context to pass to Derbent
+	const clientIp = c.req.header('cf-connecting-ip') || '127.0.0.1';
+	const clientUa = c.req.header('user-agent') || 'unknown';
+
 	const cacheKey = new Request(`https://auth.internal/verify?app_id=${appId}`, {
-		headers: { Cookie: cookie },
+		headers: {
+			Cookie: cookie,
+			'Derbent-Client-IP': clientIp,
+			'Derbent-Client-UA': clientUa,
+		},
 	});
 
 	let response = await cache.match(cacheKey);

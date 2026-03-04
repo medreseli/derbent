@@ -374,7 +374,16 @@ export class AuthHandler {
 
 	static async handleGitHubLogin(c: Context<HonoEnv>) {
 		const { appId, redirect } = getParams(c);
-		const state = btoa(JSON.stringify({ appId, redirect }));
+
+		// Generate a secure nonce for OAuth CSRF protection
+		const nonce = crypto.randomUUID();
+
+		// Store nonce in a short-lived, HttpOnly cookie (10 minutes)
+		const cookieOpts = getCookieOptions(c);
+		cookieOpts.maxAge = 600;
+		setCookie(c, 'github_oauth_state', nonce, cookieOpts);
+
+		const state = btoa(JSON.stringify({ appId, redirect, nonce }));
 		const githubUrl = `https://github.com/login/oauth/authorize?client_id=${c.env.GITHUB_CLIENT_ID}&scope=user:email&state=${state}`;
 		return c.redirect(githubUrl);
 	}
@@ -384,18 +393,36 @@ export class AuthHandler {
 		const state = c.req.query('state');
 		const { ip, userAgent } = getClientInfo(c);
 		const authService = c.get('authService');
+		const logger = c.get('logger');
 
 		let appId = 'sso';
 		let redirect = '/';
+		let nonceFromState = '';
+
 		if (state) {
 			try {
 				const parsed = JSON.parse(atob(state));
 				appId = parsed.appId || 'sso';
 				redirect = parsed.redirect || '/';
+				nonceFromState = parsed.nonce || '';
 			} catch (e) {}
 		}
 
 		if (!code || !state) return c.redirect(`/login?app_id=${appId}&redirect=${encodeURIComponent(redirect)}`);
+
+		// Extract the stored nonce from the cookie
+		const storedNonce = getCookie(c, 'github_oauth_state');
+
+		// Clear the cookie immediately to prevent replay attacks
+		const cookieOpts = getCookieOptions(c);
+		deleteCookie(c, 'github_oauth_state', cookieOpts);
+
+		// Verify that the state contains the valid nonce from this specific browser
+		if (!storedNonce || !nonceFromState || storedNonce !== nonceFromState) {
+			logger.warn(`[OAuth CSRF] State mismatch for GitHub login. IP: ${ip}`);
+			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_failed' }).toString();
+			return c.redirect(`/login?${qs}`);
+		}
 
 		try {
 			// 1. Exchange Code for Token
@@ -423,13 +450,13 @@ export class AuthHandler {
 			// 3. Complete Login
 			const { sessionId, app } = await authService.loginWithOAuth(primaryEmail, 'github', appId, ip, userAgent);
 
-			const cookieOpts = getCookieOptions(c);
-			cookieOpts.maxAge = 86400;
-			setCookie(c, `session_${app}`, sessionId, cookieOpts);
+			const loginCookieOpts = getCookieOptions(c);
+			loginCookieOpts.maxAge = 86400;
+			setCookie(c, `session_${app}`, sessionId, loginCookieOpts);
 
 			return c.redirect(redirect);
 		} catch (err) {
-			console.error('[GitHub Callback Error]', err);
+			logger.error('[GitHub Callback Error]', err);
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_failed' }).toString();
 			return c.redirect(`/login?${qs}`);
 		}

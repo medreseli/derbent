@@ -8,10 +8,18 @@ export class InternalHandler {
 		const appId = c.req.query('app_id');
 		if (!appId) return c.text('Missing app_id', 400);
 
-		// When called via Service Binding, the calling worker (Geveze) MUST pass the end-user's details in these headers.
-		// If they are missing, we default to 'internal-request' or similar, but this weakens security.
-		const clientIp = c.req.header('Derbent-Client-IP') || c.req.header('cf-connecting-ip') || 'unknown';
-		const clientUA = c.req.header('Derbent-Client-UA') || c.req.header('user-agent') || 'unknown';
+		// Prioritize explicit Derbent headers (from Service Bindings), fallback to direct request headers.
+		// We default IP to 127.0.0.1 for local dev/testing environments.
+		const clientIp = c.req.header('Derbent-Client-IP') || c.req.header('cf-connecting-ip') || '127.0.0.1';
+		const clientUA = c.req.header('Derbent-Client-UA') || c.req.header('user-agent');
+
+		// Strictly require the User-Agent context for session hijacking protection
+		if (!clientUA) {
+			const logger = c.get('logger');
+			logger.warn(`[Internal Verifier] Rejected request for app '${appId}' due to missing Client UA context.`);
+			c.header('Cache-Control', 'no-store');
+			return c.text('Bad Request: Missing Derbent-Client-UA or User-Agent header', 400);
+		}
 
 		const authService = c.get('authService');
 

@@ -24,9 +24,9 @@
 		"LOG_LEVEL": "warn",
 		"APP_NAME": "Derbent Auth",
 		"BASE_URL": "https://derbent.zerdalu.com",
+		"AUDIT_LOG_RETENTION_DAYS": "30",
 		"COOKIE_DOMAIN": ".zerdalu.com",
 		"RESEND_DOMAIN": "destek.zerdalu.com",
-		"GITHUB_CLIENT_ID": "",
 	},
 	"kv_namespaces": [
 		{
@@ -56,6 +56,11 @@
 			},
 		},
 	],
+	"triggers": {
+		"crons": [
+			"0 0 * * *", // Run every day at midnight (UTC)
+		],
+	},
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

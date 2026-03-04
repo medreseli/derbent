@@ -88,4 +88,26 @@ app.get('/verify-magic-link', csrfOnGet(), AuthHandler.handleVerifyMagicLink);
 app.get('/auth/github', AuthHandler.handleGitHubLogin);
 app.get('/auth/github/callback', AuthHandler.handleGitHubCallback);
 
-export default app;
+export default {
+	// Let Hono handle incoming HTTP requests
+	fetch: app.fetch,
+
+	// Cloudflare Cron Trigger Handler
+	async scheduled(controller: ScheduledController, env: HonoEnv['Bindings'], ctx: ExecutionContext) {
+		const logger = new Logger(env.LOG_LEVEL || 'info');
+		logger.info(`[CRON] Event triggered: ${controller.cron}`);
+
+		const auditLogRepo = new AuditLogRepository(env.DB);
+
+		// Read retention days from env, fallback to 30 if not set or invalid
+		const retentionDays = parseInt(env.AUDIT_LOG_RETENTION_DAYS || '30', 10) || 30;
+
+		// Use ctx.waitUntil so the worker doesn't terminate before the DB operation finishes
+		ctx.waitUntil(
+			(async () => {
+				const deletedCount = await auditLogRepo.prune(retentionDays);
+				logger.info(`[CRON] Pruned ${deletedCount} audit logs older than 30 days.`);
+			})(),
+		);
+	},
+};

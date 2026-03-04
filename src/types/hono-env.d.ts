@@ -11,6 +11,7 @@ export type HonoEnv = {
 		RESEND_DOMAIN: string;
 		GITHUB_CLIENT_ID: string;
 		GITHUB_CLIENT_SECRET: string;
+		AUDIT_LOG_RETENTION_DAYS?: string;
 	};
 	Variables: {
 		authService: AuthService;
