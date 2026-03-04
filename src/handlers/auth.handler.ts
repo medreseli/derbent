@@ -3,17 +3,9 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import * as v from 'valibot';
 import { AppError } from '../types/errors';
 import { HonoEnv } from '../types/hono-env';
-import {
-	ForgotPasswordSchema,
-	LoginSchema,
-	QuerySchema,
-	RegisterSchema,
-	ResetPasswordSchema,
-	MagicLinkSchema,
-	ALLOWED_APPS,
-} from '../utils/validation';
+import { ForgotPasswordSchema, LoginSchema, QuerySchema, RegisterSchema, ResetPasswordSchema, MagicLinkSchema } from '../utils/validation';
 import { getCookieOptions } from '../utils/cookie';
-import { landingPage } from '../views/pages/landing';
+import { AppStatus, landingPage } from '../views/pages/landing';
 import { loginPage } from '../views/pages/login';
 import { registerPage } from '../views/pages/register';
 import { verifyPendingPage } from '../views/pages/verify-pending';
@@ -21,6 +13,7 @@ import { ContentfulStatusCode } from 'hono/utils/http-status';
 import { forgotPasswordPage } from '../views/pages/forgot-password';
 import { resetPasswordPage } from '../views/pages/reset-password';
 import { magicLinkPage } from '../views/pages/magic-link';
+import { ALLOWED_APPS, REGISTERED_APPS } from '../config/apps';
 
 function getParams(c: Context) {
 	const parsed = v.safeParse(QuerySchema, {
@@ -43,21 +36,45 @@ export class AuthHandler {
 		const csrfToken = c.get('csrfToken');
 		const { ip, userAgent } = getClientInfo(c);
 
-		let session = null;
+		const appStatuses: AppStatus[] = [];
+		let hasAnySession = false;
 
-		for (const app of ALLOWED_APPS) {
-			const sessionId = getCookie(c, `session_${app}`);
+		for (const [appId, appConfig] of Object.entries(REGISTERED_APPS)) {
+			// Check for app-specific cookie first, fallback to sso cookie
+			let sessionId = getCookie(c, `session_${appId}`);
+			let isSsoFallback = false;
+
+			if (!sessionId && appId !== 'sso') {
+				sessionId = getCookie(c, 'session_sso');
+				isSsoFallback = !!sessionId;
+			}
+
+			let session = null;
 			if (sessionId) {
 				try {
-					session = await authService.verifySession(sessionId, app, ip, userAgent);
-					break;
+					session = await authService.verifySession(sessionId, appId, ip, userAgent);
+					hasAnySession = true;
 				} catch (err) {
-					// Cookie exists but is invalid/expired. Ignore and check the next app.
+					// Cookie exists but is invalid/expired. We ignore and treat as logged out.
+					isSsoFallback = false;
 				}
 			}
+
+			const appUrl = c.env.APP_ENV === 'development' ? appConfig.devUrl : appConfig.prodUrl;
+
+			appStatuses.push({
+				config: {
+					id: appConfig.id,
+					name: appConfig.name,
+					description: appConfig.description,
+					url: appUrl,
+				},
+				session,
+				isSsoFallback,
+			});
 		}
 
-		return c.html(landingPage(c.env.APP_NAME, csrfToken, session));
+		return c.html(landingPage(c.env.APP_NAME, csrfToken, appStatuses, hasAnySession));
 	}
 
 	static async renderLogin(c: Context<HonoEnv>) {

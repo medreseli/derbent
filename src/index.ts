@@ -89,7 +89,6 @@ app.get('/auth/github', AuthHandler.handleGitHubLogin);
 app.get('/auth/github/callback', AuthHandler.handleGitHubCallback);
 
 export default {
-	// Let Hono handle incoming HTTP requests
 	fetch: app.fetch,
 
 	// Cloudflare Cron Trigger Handler

@@ -1,6 +1,5 @@
 import * as v from 'valibot';
-
-export const ALLOWED_APPS = ['sso', 'geveze', 'hodan'] as const;
+import { ALLOWED_APPS } from '../config/apps';
 
 export const QuerySchema = v.object({
 	app_id: v.optional(v.picklist(ALLOWED_APPS), 'sso'),
