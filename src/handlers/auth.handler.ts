@@ -94,8 +94,8 @@ export class AuthHandler {
 	}
 
 	static async renderVerifyPending(c: Context<HonoEnv>) {
-		const { appId } = getParams(c);
-		return c.html(verifyPendingPage(appId));
+		const { appId, redirect } = getParams(c);
+		return c.html(verifyPendingPage(appId, redirect));
 	}
 
 	static async handleLogin(c: Context<HonoEnv>) {
@@ -134,10 +134,12 @@ export class AuthHandler {
 			logger.error(`Login error for ${result.output.email}`, err);
 
 			if (err instanceof AppError && err.message === 'EMAIL_NOT_VERIFIED') {
-				// Pass redirect, IP/UA to requestNewVerification
 				await authService.requestNewVerification(result.output.email as string, appId, redirect, ip, userAgent);
-				return c.redirect(`/verify-pending?app_id=${appId}`);
+
+				const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
+				return c.redirect(`/verify-pending?${qs}`);
 			}
+
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 			const status = err instanceof AppError ? err.status : 500;
 
@@ -159,9 +161,10 @@ export class AuthHandler {
 		}
 
 		try {
-			// Pass IP/UA and redirect
 			await authService.register(result.output.email as string, result.output.password as string, appId, redirect, ip, userAgent);
-			return c.redirect(`/verify-pending?app_id=${appId}`);
+
+			const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
+			return c.redirect(`/verify-pending?${qs}`);
 		} catch (err) {
 			console.error(`[REGISTER ERROR]`, err);
 

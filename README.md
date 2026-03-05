@@ -74,24 +74,44 @@ export async function verifyWithDerbent(c: Context, appId: string) {
 		return c.json({ error: 'Unauthorized' }, 401);
 	}
 
-	// Capture end-user context to pass to Derbent
 	const clientIp = c.req.header('cf-connecting-ip') || '127.0.0.1';
 	const clientUa = c.req.header('user-agent') || 'unknown';
 
-	const cacheKey = new Request(`https://auth.internal/verify?app_id=${appId}`, {
-		headers: {
-			Cookie: cookie,
-			'Derbent-Client-IP': clientIp,
-			'Derbent-Client-UA': clientUa,
-		},
-	});
+	// SECURITY: Cloudflare Cache API ignores the 'Vary: Cookie' header.
+	// To prevent cross-session leaking, we create a unique cache key by hashing the cookie.
+	const encoder = new TextEncoder();
+	const data = encoder.encode(cookie);
+	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+	const hashArray = Array.from(new Uint8Array(hashBuffer));
+	const cookieHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+	// PERFORMANCE: Use the consuming Worker's actual hostname to prevent DNS lookup penalties in the Cache API.
+	const currentUrl = new URL(c.req.url);
+	const cacheUrl = new URL(`${currentUrl.origin}/_internal_auth_cache`);
+	cacheUrl.searchParams.set('app_id', appId);
+	cacheUrl.searchParams.set('cookie_hash', cookieHash);
+	const cacheKey = new Request(cacheUrl.toString());
 
 	let response = await cache.match(cacheKey);
+
 	if (!response) {
-		// Fetch from Derbent via Service Binding
-		response = await c.env.DERBENT_SERVICE.fetch(cacheKey);
-		if (response.ok) await cache.put(cacheKey, response.clone());
+		// The actual request to Derbent via Service Binding.
+		const fetchReq = new Request(`https://auth.internal/verify?app_id=${appId}`, {
+			headers: {
+				Cookie: cookie,
+				'Derbent-Client-IP': clientIp,
+				'Derbent-Client-UA': clientUa,
+			},
+		});
+
+		response = await c.env.DERBENT_SERVICE.fetch(fetchReq);
+
+		if (response.ok) {
+			// Cache the response against our unique cacheKey
+			await cache.put(cacheKey, response.clone());
+		}
 	}
+
 	return response;
 }
 ```

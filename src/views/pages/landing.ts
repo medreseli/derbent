@@ -36,9 +36,10 @@ export const landingPage = (appName: string, csrfToken: string, apps: AppStatus[
 
 		let actions;
 		if (isLoggedIn) {
+			// PORTAL BEHAVIOR: Added target="_blank" and rel="noopener noreferrer" for security
 			actions = html`
 				<div class="app-actions">
-					<a href="${app.config.url}" class="btn btn-secondary" style="flex: 2;">Open App</a>
+					<a href="${app.config.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 2;">Open App</a>
 					<form method="POST" action="/logout?app_id=${app.config.id}&redirect=/" style="flex: 1; margin: 0;">
 						<input type="hidden" name="csrf_token" value="${csrfToken}" />
 						<button type="submit" class="btn btn-danger" style="margin: 0; padding: 0.5rem 0.75rem; width: 100%;">Log out</button>
@@ -47,10 +48,11 @@ export const landingPage = (appName: string, csrfToken: string, apps: AppStatus[
 				<p style="font-size: 0.75rem; margin-top: 0.25rem;">Signed in as <strong>${app.session?.email}</strong></p>
 			`;
 		} else {
+			// PORTAL BEHAVIOR: Set redirect to / so they stay on Derbent after logging in from the dashboard
 			actions = html`
 				<div class="app-actions">
-					<a href="/login?app_id=${app.config.id}&redirect=${encodeURIComponent(app.config.url)}" class="btn btn-primary">Log in</a>
-					<a href="/register?app_id=${app.config.id}&redirect=${encodeURIComponent(app.config.url)}" class="btn btn-secondary">Register</a>
+					<a href="/login?app_id=${app.config.id}&redirect=/" class="btn btn-primary">Log in</a>
+					<a href="/register?app_id=${app.config.id}&redirect=/" class="btn btn-secondary">Register</a>
 				</div>
 			`;
 		}
