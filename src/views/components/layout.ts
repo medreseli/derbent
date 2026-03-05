@@ -1,17 +1,5 @@
 import { html } from 'hono/html';
 
-export const derbentLogo = html` <svg width="40" height="40" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-	<rect width="32" height="32" rx="8" fill="#18181b" />
-	<path
-		d="M11 22V14.5C11 11.4624 13.4624 9 16.5 9C19.5376 9 22 11.4624 22 14.5V22"
-		stroke="white"
-		stroke-width="2.5"
-		stroke-linecap="round"
-	/>
-</svg>`;
-
-const faviconSvg = `data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='32' height='32' rx='8' fill='%2318181b' /%3E%3Cpath d='M11 22V14.5C11 11.4624 13.4624 9 16.5 9C19.5376 9 22 11.4624 22 14.5V22' stroke='white' stroke-width='2.5' stroke-linecap='round' /%3E%3C/svg%3E`;
-
 export const layout = (title: string, body: any, showLogo: boolean = true) => html`
 	<!DOCTYPE html>
 	<html lang="en">
@@ -19,7 +7,7 @@ export const layout = (title: string, body: any, showLogo: boolean = true) => ht
 			<meta charset="UTF-8" />
 			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 			<title>${title}</title>
-			<link rel="icon" type="image/svg+xml" href="${faviconSvg}" />
+			<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 			<style>
 				:root {
 					--bg: #f4f4f5;
@@ -73,6 +61,15 @@ export const layout = (title: string, body: any, showLogo: boolean = true) => ht
 					display: flex;
 					justify-content: center;
 					margin-bottom: 2rem;
+				}
+
+				.home-link {
+					display: inline-flex;
+					transition: opacity 0.2s ease;
+				}
+
+				.home-link:hover {
+					opacity: 0.8;
 				}
 
 				.card {
@@ -315,7 +312,15 @@ export const layout = (title: string, body: any, showLogo: boolean = true) => ht
 		</head>
 		<body>
 			<div class="wrapper">
-				${showLogo ? html`<div class="logo-container">${derbentLogo}</div>` : ''}
+				${showLogo
+					? html`
+							<div class="logo-container">
+								<a href="/" class="home-link" title="Go back to Derbent Home">
+									<img src="/logo.svg" alt="Derbent Logo" width="40" height="40" />
+								</a>
+							</div>
+						`
+					: ''}
 				<div class="card">
 					<h1>${title}</h1>
 					${body}

@@ -7,6 +7,7 @@
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
+		"reset": "rm -rf .wrangler/state/v3 && wrangler d1 execute db-derbent --file './db/schema.sql' --local",
 		"cf-typegen": "wrangler types",
 		"yay": "wrangler deploy",
 		"çat": "wrangler dev",

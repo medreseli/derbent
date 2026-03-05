@@ -13,13 +13,13 @@ export class EmailService {
 		this.fromEmail = `noreply@${this.resendDomain}`;
 	}
 
-	async sendVerificationEmail(to: string, token: string): Promise<void> {
+	async sendVerificationEmail(to: string, token: string, appId?: string, redirect?: string): Promise<void> {
 		if (this.queue) {
-			await this.queue.send({ type: 'verify_email', to, token });
+			await this.queue.send({ type: 'verify_email', to, token, appId, redirect });
 			return;
 		}
 		// Fallback for tests or local execution if queue is not bound
-		await this.processVerificationEmail(to, token);
+		await this.processVerificationEmail(to, token, appId, redirect);
 	}
 
 	async sendPasswordResetEmail(to: string, token: string): Promise<void> {
@@ -41,7 +41,7 @@ export class EmailService {
 	async processMessage(msg: EmailQueueMessage): Promise<void> {
 		switch (msg.type) {
 			case 'verify_email':
-				await this.processVerificationEmail(msg.to, msg.token);
+				await this.processVerificationEmail(msg.to, msg.token, msg.appId, msg.redirect);
 				break;
 			case 'reset_password':
 				await this.processPasswordResetEmail(msg.to, msg.token);
@@ -53,8 +53,12 @@ export class EmailService {
 		}
 	}
 
-	private async processVerificationEmail(to: string, token: string): Promise<void> {
-		const verificationUrl = `${this.baseUrl}/verify-email?token=${token}`;
+	private async processVerificationEmail(to: string, token: string, appId?: string, redirect?: string): Promise<void> {
+		const qs = new URLSearchParams({ token });
+		if (appId) qs.set('app_id', appId);
+		if (redirect) qs.set('redirect', redirect);
+
+		const verificationUrl = `${this.baseUrl}/verify-email?${qs.toString()}`;
 
 		const response = await fetch('https://api.resend.com/emails', {
 			method: 'POST',

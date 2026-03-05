@@ -109,7 +109,7 @@ export class AuthHandler {
 
 		if (!result.success) {
 			logger.warn(`Login validation failed for app: ${appId}`, result.issues);
-			return c.html(loginPage(appId, redirect, c.get('csrfToken'), result.issues[0].message), 400);
+			return c.html(loginPage(c.env.APP_NAME, appId, redirect, c.get('csrfToken'), result.issues[0].message), 400);
 		}
 
 		try {
@@ -134,14 +134,14 @@ export class AuthHandler {
 			logger.error(`Login error for ${result.output.email}`, err);
 
 			if (err instanceof AppError && err.message === 'EMAIL_NOT_VERIFIED') {
-				// Pass IP/UA to requestNewVerification
-				await authService.requestNewVerification(result.output.email as string, appId, ip, userAgent);
+				// Pass redirect, IP/UA to requestNewVerification
+				await authService.requestNewVerification(result.output.email as string, appId, redirect, ip, userAgent);
 				return c.redirect(`/verify-pending?app_id=${appId}`);
 			}
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 			const status = err instanceof AppError ? err.status : 500;
 
-			return c.html(loginPage(appId, redirect, c.get('csrfToken'), msg), status);
+			return c.html(loginPage(c.env.APP_NAME, appId, redirect, c.get('csrfToken'), msg), status);
 		}
 	}
 
@@ -159,8 +159,8 @@ export class AuthHandler {
 		}
 
 		try {
-			// Pass IP/UA
-			await authService.register(result.output.email as string, result.output.password as string, appId, ip, userAgent);
+			// Pass IP/UA and redirect
+			await authService.register(result.output.email as string, result.output.password as string, appId, redirect, ip, userAgent);
 			return c.redirect(`/verify-pending?app_id=${appId}`);
 		} catch (err) {
 			console.error(`[REGISTER ERROR]`, err);
@@ -179,23 +179,23 @@ export class AuthHandler {
 
 	static async handleVerifyEmail(c: Context<HonoEnv>) {
 		const token = c.req.query('token');
+		const { appId, redirect } = getParams(c);
 		const { ip, userAgent } = getClientInfo(c);
 
 		if (!token) {
-			return c.html(loginPage('sso', '/', c.get('csrfToken'), 'No verification token provided.'));
+			return c.html(loginPage(c.env.APP_NAME, appId, redirect, c.get('csrfToken'), 'No verification token provided.'));
 		}
 
 		const authService = c.get('authService');
 		const csrfToken = c.get('csrfToken');
 		try {
-			// Pass IP/UA
 			await authService.verifyEmailToken(token, ip, userAgent);
-			return c.html(loginPage(c.env.APP_NAME, 'sso', '/', csrfToken, undefined, 'Email verified successfully! You can now log in.'));
+			return c.html(loginPage(c.env.APP_NAME, appId, redirect, csrfToken, undefined, 'Email verified successfully! You can now log in.'));
 		} catch (err) {
 			console.error(`[VERIFY EMAIL ERROR]`, err);
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 			const status = err instanceof AppError ? err.status : 500;
-			return c.html(loginPage('sso', '/', csrfToken, msg), status);
+			return c.html(loginPage(c.env.APP_NAME, appId, redirect, csrfToken, msg), status);
 		}
 	}
 
@@ -369,7 +369,8 @@ export class AuthHandler {
 		const { ip, userAgent } = getClientInfo(c);
 
 		if (!token) {
-			return c.html(loginPage(appId, redirect, csrfToken, 'No magic link token provided.'));
+			// Fixed: Added c.env.APP_NAME
+			return c.html(loginPage(c.env.APP_NAME, appId, redirect, csrfToken, 'No magic link token provided.'));
 		}
 
 		try {
@@ -385,7 +386,8 @@ export class AuthHandler {
 			console.error(`[VERIFY MAGIC LINK ERROR]`, err);
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 			const status = err instanceof AppError ? err.status : 500;
-			return c.html(loginPage(appId, redirect, csrfToken, msg), status);
+			// Fixed: Added c.env.APP_NAME
+			return c.html(loginPage(c.env.APP_NAME, appId, redirect, csrfToken, msg), status);
 		}
 	}
 

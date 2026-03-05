@@ -9,6 +9,7 @@ import { UserTokenVersionRepository } from '../repositories/user-token-version.r
 import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { LoginAttemptRepository } from '../repositories/login-attempt.repository';
 import { generateUUIDv7 } from '../utils/uuid';
+import { User } from '../types/user';
 
 export class AuthService {
 	constructor(
@@ -21,6 +22,33 @@ export class AuthService {
 		private loginAttemptRepo: LoginAttemptRepository,
 		private hashIterations: number,
 	) {}
+
+	/**
+	 * Safely verifies a password against a user's hash while mitigating timing attacks.
+	 * It ensures the verification process takes roughly the same amount of time
+	 * whether the user exists, doesn't exist, or is an OAuth user.
+	 */
+	private async verifyPasswordSafe(password: string, user: User | null): Promise<boolean> {
+		// Construct a dummy hash using the same iteration count to simulate the exact CPU load.
+		// The salt and hash parts just need to be valid Base64 strings to pass the format check.
+		const dummySalt = 'U29tZVJhbmRvbVNhbHQ='; // "SomeRandomSalt"
+		const dummyHashPart = 'U29tZVJhbmRvbUhhc2g='; // "SomeRandomHash"
+		const dummyHash = `${this.hashIterations}:${dummySalt}:${dummyHashPart}`;
+
+		// Check if we have a valid user with a password (not OAuth)
+		// We explicitly check for null user here to satisfy TypeScript in the targetHash selection
+		const isRealUserWithPassword = !!user && !user.phash.startsWith('OAUTH:');
+
+		// If user exists and has a real password, use it. Otherwise, use the dummy.
+		// We verify against the dummy hash to consume CPU cycles even if the user is invalid.
+		const targetHash = isRealUserWithPassword ? (user as User).phash : dummyHash;
+
+		// Perform verification (always takes ~100ms+ depending on configured iterations)
+		const isMatch = await verifyPassword(password, targetHash);
+
+		// Return true only if it was a real user match
+		return isRealUserWithPassword && isMatch;
+	}
 
 	private async createSessionForUser(user: any, ip: string, userAgent: string): Promise<string> {
 		let userMetadata = {};
@@ -58,13 +86,12 @@ export class AuthService {
 
 		const user = await this.userRepo.findForLogin(email, appId);
 
-		let isPasswordVerified = false;
-		if (user && !user.phash.startsWith('OAUTH:')) {
-			isPasswordVerified = await verifyPassword(password, user.phash);
-		}
+		// Use the safe verification helper to mitigate timing attacks
+		const isPasswordVerified = await this.verifyPasswordSafe(password, user);
 
 		if (!user || !isPasswordVerified) {
 			await this.loginAttemptRepo.incrementAttempts(email);
+			// Security Note: We still log "invalid_credentials" generically to internal logs
 			await this.auditLogRepo.log({
 				action: 'login_failed',
 				email,
@@ -135,7 +162,7 @@ export class AuthService {
 		return { sessionId, app: user.app };
 	}
 
-	async register(email: string, password: string, appId: string, ip: string, userAgent: string): Promise<void> {
+	async register(email: string, password: string, appId: string, redirect: string, ip: string, userAgent: string): Promise<void> {
 		const existingSso = await this.userRepo.findByEmailAndApp(email, 'sso');
 		if (existingSso) throw new AppError('An SSO account already exists for this email.');
 
@@ -163,7 +190,25 @@ export class AuthService {
 
 		const token = crypto.randomUUID();
 		await this.tokenRepo.saveEmailVerificationToken(token, userId);
-		await this.emailService.sendVerificationEmail(email, token);
+		await this.emailService.sendVerificationEmail(email, token, appId, redirect);
+	}
+
+	async requestNewVerification(email: string, appId: string, redirect: string, ip: string, userAgent: string): Promise<void> {
+		const user = await this.userRepo.findByEmailAndApp(email, appId);
+
+		if (!user || user.email_verified === 1) return;
+
+		const token = crypto.randomUUID();
+		await this.tokenRepo.saveEmailVerificationToken(token, user.id);
+		await this.emailService.sendVerificationEmail(email, token, appId, redirect);
+
+		await this.auditLogRepo.log({
+			action: 'verification_email_requested',
+			userId: user.id,
+			email: user.email,
+			ip,
+			userAgent,
+		});
 	}
 
 	async verifySession(sessionId: string, requiredAppId: string, currentIp?: string, currentUserAgent?: string): Promise<Session> {
@@ -196,24 +241,6 @@ export class AuthService {
 		}
 
 		return session;
-	}
-
-	async requestNewVerification(email: string, appId: string, ip: string, userAgent: string): Promise<void> {
-		const user = await this.userRepo.findByEmailAndApp(email, appId);
-
-		if (!user || user.email_verified === 1) return;
-
-		const token = crypto.randomUUID();
-		await this.tokenRepo.saveEmailVerificationToken(token, user.id);
-		await this.emailService.sendVerificationEmail(email, token);
-
-		await this.auditLogRepo.log({
-			action: 'verification_email_requested',
-			userId: user.id,
-			email: user.email,
-			ip,
-			userAgent,
-		});
 	}
 
 	async verifyEmailToken(token: string, ip: string, userAgent: string): Promise<void> {

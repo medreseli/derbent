@@ -11,6 +11,9 @@
 	"observability": {
 		"enabled": true,
 	},
+	"assets": {
+		"directory": "./public/",
+	},
 	"workers_dev": false,
 	"preview_urls": false,
 	"routes": [

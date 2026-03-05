@@ -22,12 +22,6 @@ const app = new Hono<HonoEnv>();
 
 app.use('*', secureHeaders());
 
-app.get('/favicon.ico', (c) => {
-	// 204 means "Success, but there is no content to return"
-	// The browser will fall back to using the <link rel="icon"> in the HTML head.
-	return c.body(null, 204);
-});
-
 app.use('*', async (c, next) => {
 	const logger = new Logger(c.env.LOG_LEVEL || 'info');
 	c.set('logger', logger);
@@ -78,6 +72,7 @@ app.post('/logout', rateLimit(), csrfOnPost(), AuthHandler.handleLogout);
 app.post('/logout-all', rateLimit(), csrfOnPost(), AuthHandler.handleLogoutAll);
 app.post('/logout-all-email', rateLimit(), csrfOnPost(), AuthHandler.handleLogoutAllByEmail);
 
+// Service Binding Routes
 app.get('/internal/verify', InternalHandler.verify);
 app.post('/internal/logout', InternalHandler.logout);
 
