@@ -18,10 +18,10 @@
 		"@types/node": "^25.3.0",
 		"typescript": "^5.5.2",
 		"vitest": "~3.2.0",
-		"wrangler": "^4.69.0"
+		"wrangler": "^4.70.0"
 	},
 	"dependencies": {
-		"hono": "^4.12.3",
+		"hono": "^4.12.5",
 		"valibot": "^1.2.0"
 	}
 }

@@ -255,25 +255,43 @@ export class AuthHandler {
 	}
 
 	static async handleLogoutAllByEmail(c: Context<HonoEnv>) {
-		const { appId, redirect } = getParams(c);
+		const { redirect } = getParams(c);
 		const authService = c.get('authService');
 		const { ip, userAgent } = getClientInfo(c);
 
-		let sessionId = getCookie(c, `session_${appId}`);
-		if (!sessionId && appId !== 'sso') sessionId = getCookie(c, 'session_sso');
+		let targetEmail: string | null = null;
 
-		if (sessionId) {
+		for (const appKey of Object.keys(REGISTERED_APPS)) {
+			const cookieName = `session_${appKey}`;
+			const cookieVal = getCookie(c, cookieName);
+
+			if (cookieVal) {
+				try {
+					const session = await authService.verifySession(cookieVal, appKey);
+					targetEmail = session.email;
+
+					break;
+				} catch (e) {
+					// Cookie existed but was invalid/expired, continue checking others
+				}
+			}
+		}
+
+		if (targetEmail) {
 			try {
-				const session = await authService.verifySession(sessionId, appId);
-				await authService.logoutAllByEmail(session.email, ip, userAgent);
+				await authService.logoutAllByEmail(targetEmail, ip, userAgent);
 			} catch (err) {
 				console.error(`[LOGOUT ALL ERROR]`, err);
 			}
 		}
 
 		const cookieOptions = getCookieOptions(c);
-		deleteCookie(c, `session_${appId}`, cookieOptions);
-		if (appId !== 'sso') deleteCookie(c, 'session_sso', cookieOptions);
+
+		deleteCookie(c, 'csrf_token', getCookieOptions(c));
+
+		for (const appKey of Object.keys(REGISTERED_APPS)) {
+			deleteCookie(c, `session_${appKey}`, cookieOptions);
+		}
 
 		return c.redirect(redirect);
 	}
