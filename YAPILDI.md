@@ -17,6 +17,8 @@
 - OAuth / Social Login - GitHub
 - Email Resiliency with Cloudflare Queues
 - CPU Limit Risks with PBKDF2 - Iteration count can be set as an env variable so that it can be lowered if needed.
+- UI for a logged-in user to Change their Password.
+- Two-Factor Authentication (2FA/MFA)
 
 # DONE, NEEDS TO BE CHECKED
 

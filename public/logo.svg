@@ -1,9 +1,59 @@
-<svg width="40" height="40" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-	<rect width="32" height="32" rx="8" fill="#18181b" />
-	<path
-		d="M11 22V14.5C11 11.4624 13.4624 9 16.5 9C19.5376 9 22 11.4624 22 14.5V22"
-		stroke="white"
-		stroke-width="2.5"
-		stroke-linecap="round"
-	/>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="512"
+   height="432"
+   viewBox="0 0 512 432"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="alem-derbent.svg"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="1.0078851"
+     inkscape:cx="188.51355"
+     inkscape:cy="282.77033"
+     inkscape:window-width="1920"
+     inkscape:window-height="1011"
+     inkscape:window-x="0"
+     inkscape:window-y="32"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="path4"
+       style="fill:#333333;stroke:#ffffff;stroke-width:0;stroke-dasharray:none"
+       d="M 309.14458,8.66386 V 423.33614 C 422.69785,401.98454 503.71013,315.89151 504.01333,216.24602 503.97925,116.4161 422.90757,30.055247 309.14458,8.66386 Z M 202.85543,9.155918 C 89.302149,30.507516 8.289869,116.60055 7.986671,216.24602 8.289868,315.89151 89.302149,401.98454 202.85543,423.33614 Z"
+       sodipodi:nodetypes="cccccccc" />
+    <circle
+       style="fill:#ffffff;stroke:#ffffff;stroke-width:0;stroke-dasharray:none"
+       id="path1"
+       cx="256"
+       cy="216"
+       r="131.23993" />
+    <circle
+       style="fill:#ff8080;stroke:#333333;stroke-width:0;stroke-dasharray:none;stroke-opacity:0.570104"
+       id="path5"
+       cx="256"
+       cy="216"
+       r="86.033699" />
+  </g>
 </svg>
