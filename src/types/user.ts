@@ -6,6 +6,8 @@ export interface User {
 	phash: string;
 	token_version: number;
 	metadata: string;
+	two_factor_secret: string | null;
+	two_factor_enabled: number;
 	created_at: string;
 	updated_at: string;
 }

@@ -44,3 +44,12 @@ export const ResetPasswordSchema = v.pipe(
 export const MagicLinkSchema = v.object({
 	email: EmailSchema,
 });
+
+export const ChangePasswordSchema = v.pipe(
+	v.object({
+		currentPassword: v.string('Current password is required.'),
+		newPassword: PasswordSchema,
+		confirmNewPassword: v.string('Please confirm your new password.'),
+	}),
+	v.check((input) => input.newPassword === input.confirmNewPassword, 'New passwords do not match.'),
+);

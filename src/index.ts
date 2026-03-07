@@ -86,6 +86,17 @@ app.post('/forgot-password', csrfOnPost(), AuthHandler.handleForgot);
 app.get('/reset-password', csrfOnGet(), AuthHandler.renderReset);
 app.post('/reset-password', csrfOnPost(), AuthHandler.handleReset);
 
+// Settings and 2FA Routes
+app.get('/change-password', csrfOnGet(), AuthHandler.renderChangePassword);
+app.post('/change-password', rateLimit(), csrfOnPost(), AuthHandler.handleChangePassword);
+
+app.get('/2fa/setup', csrfOnGet(), AuthHandler.render2FASetup);
+app.post('/2fa/setup', rateLimit(), csrfOnPost(), AuthHandler.handle2FASetup);
+app.post('/2fa/disable', rateLimit(), csrfOnPost(), AuthHandler.handle2FADisable);
+
+app.get('/2fa/verify', csrfOnGet(), AuthHandler.render2FAVerify);
+app.post('/2fa/verify', rateLimit(), csrfOnPost(), AuthHandler.handle2FAVerify);
+
 // Magic Link Routes
 app.get('/magic-link', csrfOnGet(), AuthHandler.renderMagicLink);
 app.post('/magic-link', rateLimit(), csrfOnPost(), AuthHandler.handleMagicLinkRequest);
@@ -105,10 +116,8 @@ export default {
 
 		const auditLogRepo = new AuditLogRepository(env.DB);
 
-		// Read retention days from env, fallback to 30 if not set or invalid
 		const retentionDays = parseInt(env.AUDIT_LOG_RETENTION_DAYS || '30', 10) || 30;
 
-		// Use ctx.waitUntil so the worker doesn't terminate before the DB operation finishes
 		ctx.waitUntil(
 			(async () => {
 				const deletedCount = await auditLogRepo.prune(retentionDays);
@@ -122,7 +131,6 @@ export default {
 		const logger = new Logger(env.LOG_LEVEL || 'info');
 		logger.info(`[QUEUE] Processing batch of ${batch.messages.length} messages`);
 
-		// Instantiate EmailService without the Queue binding (so it actually performs the fetch)
 		const emailService = new EmailService(env.APP_NAME, env.BASE_URL, env.RESEND_API_KEY, env.RESEND_DOMAIN);
 
 		for (const message of batch.messages) {

@@ -1,19 +1,32 @@
 import { Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+import { ContentfulStatusCode } from 'hono/utils/http-status';
 import * as v from 'valibot';
+import { REGISTERED_APPS } from '../config/apps';
 import { AppError } from '../types/errors';
 import { HonoEnv } from '../types/hono-env';
-import { ForgotPasswordSchema, LoginSchema, QuerySchema, RegisterSchema, ResetPasswordSchema, MagicLinkSchema } from '../utils/validation';
+import { Session } from '../types/session';
 import { getCookieOptions } from '../utils/cookie';
+import { generateSecret } from '../utils/totp';
+import {
+	ChangePasswordSchema,
+	ForgotPasswordSchema,
+	LoginSchema,
+	MagicLinkSchema,
+	QuerySchema,
+	RegisterSchema,
+	ResetPasswordSchema,
+} from '../utils/validation';
+import { changePasswordPage } from '../views/pages/change-password';
+import { forgotPasswordPage } from '../views/pages/forgot-password';
 import { AppStatus, landingPage } from '../views/pages/landing';
 import { loginPage } from '../views/pages/login';
-import { registerPage } from '../views/pages/register';
-import { verifyPendingPage } from '../views/pages/verify-pending';
-import { ContentfulStatusCode } from 'hono/utils/http-status';
-import { forgotPasswordPage } from '../views/pages/forgot-password';
-import { resetPasswordPage } from '../views/pages/reset-password';
 import { magicLinkPage } from '../views/pages/magic-link';
-import { ALLOWED_APPS, REGISTERED_APPS } from '../config/apps';
+import { registerPage } from '../views/pages/register';
+import { resetPasswordPage } from '../views/pages/reset-password';
+import { twoFactorManagePage, twoFactorSetupPage } from '../views/pages/two-factor';
+import { twoFactorVerifyPage } from '../views/pages/two-factor-verify';
+import { verifyPendingPage } from '../views/pages/verify-pending';
 
 function getParams(c: Context) {
 	const parsed = v.safeParse(QuerySchema, {
@@ -31,6 +44,26 @@ function getClientInfo(c: Context) {
 }
 
 export class AuthHandler {
+	static async getActiveSession(c: Context<HonoEnv>): Promise<{ session: Session; appId: string } | null> {
+		const authService = c.get('authService');
+		const { ip, userAgent } = getClientInfo(c);
+
+		for (const appKey of Object.keys(REGISTERED_APPS)) {
+			const cookieName = `session_${appKey}`;
+			const cookieVal = getCookie(c, cookieName);
+
+			if (cookieVal) {
+				try {
+					const session = await authService.verifySession(cookieVal, appKey, ip, userAgent);
+					return { session, appId: appKey };
+				} catch (e) {
+					// continue checking others
+				}
+			}
+		}
+		return null;
+	}
+
 	static async index(c: Context<HonoEnv>) {
 		const authService = c.get('authService');
 		const csrfToken = c.get('csrfToken');
@@ -40,7 +73,6 @@ export class AuthHandler {
 		let hasAnySession = false;
 
 		for (const [appId, appConfig] of Object.entries(REGISTERED_APPS)) {
-			// Check for app-specific cookie first, fallback to sso cookie
 			let sessionId = getCookie(c, `session_${appId}`);
 			let isSsoFallback = false;
 
@@ -55,7 +87,6 @@ export class AuthHandler {
 					session = await authService.verifySession(sessionId, appId, ip, userAgent);
 					hasAnySession = true;
 				} catch (err) {
-					// Cookie exists but is invalid/expired. We ignore and treat as logged out.
 					isSsoFallback = false;
 				}
 			}
@@ -74,7 +105,12 @@ export class AuthHandler {
 			});
 		}
 
-		return c.html(landingPage(c.env.APP_NAME, csrfToken, appStatuses, hasAnySession));
+		const successParam = c.req.query('success');
+		let successMsg = undefined;
+		if (successParam === '2fa_enabled') successMsg = 'Two-Factor Authentication was successfully enabled.';
+		if (successParam === '2fa_disabled') successMsg = 'Two-Factor Authentication was successfully disabled.';
+
+		return c.html(landingPage(c.env.APP_NAME, csrfToken, appStatuses, hasAnySession, successMsg));
 	}
 
 	static async renderLogin(c: Context<HonoEnv>) {
@@ -113,19 +149,18 @@ export class AuthHandler {
 		}
 
 		try {
-			const { sessionId, app } = await authService.login(
-				result.output.email as string,
-				result.output.password as string,
-				appId,
-				ip,
-				userAgent,
-			);
+			const loginResult = await authService.login(result.output.email as string, result.output.password as string, appId, ip, userAgent);
+
+			if (loginResult.requires2FA) {
+				const qs = new URLSearchParams({ token: loginResult.twoFactorToken!, app_id: appId, redirect }).toString();
+				return c.redirect(`/2fa/verify?${qs}`);
+			}
 
 			const cookieOpts = getCookieOptions(c);
-			cookieOpts.maxAge = 86400; // 24 hours
+			cookieOpts.maxAge = 86400;
 
-			setCookie(c, `session_${app}`, sessionId, cookieOpts);
-			logger.info(`Successful login. Setting Cookie "session_${app}"`, { email: result.output.email });
+			setCookie(c, `session_${loginResult.app}`, loginResult.sessionId!, cookieOpts);
+			logger.info(`Successful login. Setting Cookie "session_${loginResult.app}"`, { email: result.output.email });
 
 			deleteCookie(c, 'csrf_token', getCookieOptions(c));
 
@@ -135,7 +170,6 @@ export class AuthHandler {
 
 			if (err instanceof AppError && err.message === 'EMAIL_NOT_VERIFIED') {
 				await authService.requestNewVerification(result.output.email as string, appId, redirect, ip, userAgent);
-
 				const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
 				return c.redirect(`/verify-pending?${qs}`);
 			}
@@ -156,26 +190,20 @@ export class AuthHandler {
 		const result = v.safeParse(RegisterSchema, formData);
 
 		if (!result.success) {
-			console.error(`[REGISTER VALIDATION ERROR]`, result.issues);
 			return c.html(registerPage(appId, redirect, c.get('csrfToken'), result.issues[0].message), 400);
 		}
 
 		try {
 			await authService.register(result.output.email as string, result.output.password as string, appId, redirect, ip, userAgent);
-
 			const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
 			return c.redirect(`/verify-pending?${qs}`);
 		} catch (err) {
-			console.error(`[REGISTER ERROR]`, err);
-
 			let status: ContentfulStatusCode = 500;
 			let msg = 'An unexpected system error occurred. Please try again later.';
-
 			if (err instanceof AppError) {
 				msg = err.message;
 				status = err.status;
 			}
-
 			return c.html(registerPage(appId, redirect, c.get('csrfToken'), msg), status);
 		}
 	}
@@ -195,7 +223,6 @@ export class AuthHandler {
 			await authService.verifyEmailToken(token, ip, userAgent);
 			return c.html(loginPage(c.env.APP_NAME, appId, redirect, csrfToken, undefined, 'Email verified successfully! You can now log in.'));
 		} catch (err) {
-			console.error(`[VERIFY EMAIL ERROR]`, err);
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 			const status = err instanceof AppError ? err.status : 500;
 			return c.html(loginPage(c.env.APP_NAME, appId, redirect, csrfToken, msg), status);
@@ -213,9 +240,7 @@ export class AuthHandler {
 		if (sessionId) {
 			try {
 				await authService.logout(sessionId);
-			} catch (err) {
-				console.error(`[LOGOUT ERROR]`, err);
-			}
+			} catch (err) {}
 		}
 
 		deleteCookie(c, 'csrf_token', getCookieOptions(c));
@@ -239,9 +264,7 @@ export class AuthHandler {
 			try {
 				const session = await authService.verifySession(sessionId, appId);
 				await authService.logoutAll(session.userId, ip, userAgent);
-			} catch (err) {
-				console.error(`[LOGOUT ALL ERROR]`, err);
-			}
+			} catch (err) {}
 		}
 
 		const cookieOptions = getCookieOptions(c);
@@ -269,24 +292,18 @@ export class AuthHandler {
 				try {
 					const session = await authService.verifySession(cookieVal, appKey);
 					targetEmail = session.email;
-
 					break;
-				} catch (e) {
-					// Cookie existed but was invalid/expired, continue checking others
-				}
+				} catch (e) {}
 			}
 		}
 
 		if (targetEmail) {
 			try {
 				await authService.logoutAllByEmail(targetEmail, ip, userAgent);
-			} catch (err) {
-				console.error(`[LOGOUT ALL ERROR]`, err);
-			}
+			} catch (err) {}
 		}
 
 		const cookieOptions = getCookieOptions(c);
-
 		deleteCookie(c, 'csrf_token', getCookieOptions(c));
 
 		for (const appKey of Object.keys(REGISTERED_APPS)) {
@@ -310,16 +327,10 @@ export class AuthHandler {
 
 		if (result.success) {
 			try {
-				// Pass IP/UA
 				await c.get('authService').requestPasswordReset(result.output.email, appId, ip, userAgent);
-			} catch (err) {
-				console.error(`[FORGOT PASSWORD ERROR]`, err);
-			}
-		} else {
-			console.error(`[FORGOT PASSWORD VALIDATION ERROR]`, result.issues);
+			} catch (err) {}
 		}
-		const csrfToken = c.get('csrfToken');
-		return c.html(forgotPasswordPage(csrfToken, appId, redirect, undefined, true));
+		return c.html(forgotPasswordPage(c.get('csrfToken'), appId, redirect, undefined, true));
 	}
 
 	static async renderReset(c: Context<HonoEnv>) {
@@ -337,19 +348,55 @@ export class AuthHandler {
 		const csrfToken = c.get('csrfToken');
 
 		if (!result.success) {
-			console.error(`[RESET VALIDATION ERROR]`, result.issues);
 			return c.html(resetPasswordPage(token, csrfToken, result.issues[0].message), 400);
 		}
 
 		try {
-			// Pass IP/UA
 			const app = await c.get('authService').resetPassword(result.output.token, result.output.password, ip, userAgent);
 			return c.html(loginPage(c.env.APP_NAME, app, '/', csrfToken, undefined, 'Password reset successful! You can now log in.'));
 		} catch (err) {
-			console.error(`[RESET ERROR]`, err);
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 			const status = err instanceof AppError ? err.status : 500;
 			return c.html(resetPasswordPage(result.output.token, csrfToken, msg), status);
+		}
+	}
+
+	static async renderChangePassword(c: Context<HonoEnv>) {
+		const active = await AuthHandler.getActiveSession(c);
+		if (!active) return c.redirect('/login');
+
+		return c.html(changePasswordPage(c.get('csrfToken')));
+	}
+
+	static async handleChangePassword(c: Context<HonoEnv>) {
+		const active = await AuthHandler.getActiveSession(c);
+		if (!active) return c.redirect('/login');
+
+		const formData = await c.req.parseBody();
+		const result = v.safeParse(ChangePasswordSchema, formData);
+
+		if (!result.success) {
+			return c.html(changePasswordPage(c.get('csrfToken'), result.issues[0].message), 400);
+		}
+
+		try {
+			const { ip, userAgent } = getClientInfo(c);
+			await c
+				.get('authService')
+				.changePassword(active.session.userId, result.output.currentPassword, result.output.newPassword, ip, userAgent);
+
+			const cookieOptions = getCookieOptions(c);
+			deleteCookie(c, 'csrf_token', cookieOptions);
+			for (const appKey of Object.keys(REGISTERED_APPS)) {
+				deleteCookie(c, `session_${appKey}`, cookieOptions);
+			}
+
+			return c.html(
+				loginPage(c.env.APP_NAME, 'sso', '/', c.get('csrfToken'), undefined, 'Password changed successfully. Please log in again.'),
+			);
+		} catch (err) {
+			const msg = err instanceof AppError ? err.message : 'An unexpected error occurred.';
+			return c.html(changePasswordPage(c.get('csrfToken'), msg), 400);
 		}
 	}
 
@@ -368,16 +415,12 @@ export class AuthHandler {
 		const result = v.safeParse(MagicLinkSchema, formData);
 
 		if (!result.success) {
-			console.error(`[MAGIC LINK REQUEST VALIDATION ERROR]`, result.issues);
 			return c.html(magicLinkPage(appId, redirect, csrfToken, result.issues[0].message), 400);
 		}
 
 		try {
-			// Pass IP/UA
 			await c.get('authService').requestMagicLink(result.output.email, appId, redirect, ip, userAgent);
-		} catch (err) {
-			console.error(`[MAGIC LINK REQUEST ERROR]`, err);
-		}
+		} catch (err) {}
 
 		return c.html(magicLinkPage(appId, redirect, csrfToken, undefined, true));
 	}
@@ -390,35 +433,33 @@ export class AuthHandler {
 		const { ip, userAgent } = getClientInfo(c);
 
 		if (!token) {
-			// Fixed: Added c.env.APP_NAME
 			return c.html(loginPage(c.env.APP_NAME, appId, redirect, csrfToken, 'No magic link token provided.'));
 		}
 
 		try {
-			const { sessionId, app } = await authService.verifyMagicLink(token, appId, ip, userAgent);
+			const loginResult = await authService.verifyMagicLink(token, appId, ip, userAgent);
+
+			if (loginResult.requires2FA) {
+				const qs = new URLSearchParams({ token: loginResult.twoFactorToken!, app_id: appId, redirect }).toString();
+				return c.redirect(`/2fa/verify?${qs}`);
+			}
 
 			const cookieOpts = getCookieOptions(c);
 			cookieOpts.maxAge = 86400;
 
-			setCookie(c, `session_${app}`, sessionId, cookieOpts);
+			setCookie(c, `session_${loginResult.app}`, loginResult.sessionId!, cookieOpts);
 
 			return c.redirect(redirect);
 		} catch (err) {
-			console.error(`[VERIFY MAGIC LINK ERROR]`, err);
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 			const status = err instanceof AppError ? err.status : 500;
-			// Fixed: Added c.env.APP_NAME
 			return c.html(loginPage(c.env.APP_NAME, appId, redirect, csrfToken, msg), status);
 		}
 	}
 
 	static async handleGitHubLogin(c: Context<HonoEnv>) {
 		const { appId, redirect } = getParams(c);
-
-		// Generate a secure nonce for OAuth CSRF protection
 		const nonce = crypto.randomUUID();
-
-		// Store nonce in a short-lived, HttpOnly cookie (10 minutes)
 		const cookieOpts = getCookieOptions(c);
 		cookieOpts.maxAge = 600;
 		setCookie(c, 'github_oauth_state', nonce, cookieOpts);
@@ -450,22 +491,16 @@ export class AuthHandler {
 
 		if (!code || !state) return c.redirect(`/login?app_id=${appId}&redirect=${encodeURIComponent(redirect)}`);
 
-		// Extract the stored nonce from the cookie
 		const storedNonce = getCookie(c, 'github_oauth_state');
-
-		// Clear the cookie immediately to prevent replay attacks
 		const cookieOpts = getCookieOptions(c);
 		deleteCookie(c, 'github_oauth_state', cookieOpts);
 
-		// Verify that the state contains the valid nonce from this specific browser
 		if (!storedNonce || !nonceFromState || storedNonce !== nonceFromState) {
-			logger.warn(`[OAuth CSRF] State mismatch for GitHub login. IP: ${ip}`);
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_failed' }).toString();
 			return c.redirect(`/login?${qs}`);
 		}
 
 		try {
-			// 1. Exchange Code for Token
 			const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -478,7 +513,6 @@ export class AuthHandler {
 			const tokenData: any = await tokenRes.json();
 			if (!tokenData.access_token) throw new Error('GitHub Auth Failed');
 
-			// 2. Get User Email
 			const emailRes = await fetch('https://api.github.com/user/emails', {
 				headers: { Authorization: `Bearer ${tokenData.access_token}`, 'User-Agent': 'Derbent-Auth' },
 			});
@@ -487,18 +521,106 @@ export class AuthHandler {
 
 			if (!primaryEmail) throw new Error('No verified email found on GitHub');
 
-			// 3. Complete Login
-			const { sessionId, app } = await authService.loginWithOAuth(primaryEmail, 'github', appId, ip, userAgent);
+			const loginResult = await authService.loginWithOAuth(primaryEmail, 'github', appId, ip, userAgent);
+
+			if (loginResult.requires2FA) {
+				const qs = new URLSearchParams({ token: loginResult.twoFactorToken!, app_id: appId, redirect }).toString();
+				return c.redirect(`/2fa/verify?${qs}`);
+			}
 
 			const loginCookieOpts = getCookieOptions(c);
 			loginCookieOpts.maxAge = 86400;
-			setCookie(c, `session_${app}`, sessionId, loginCookieOpts);
+			setCookie(c, `session_${loginResult.app}`, loginResult.sessionId!, loginCookieOpts);
 
 			return c.redirect(redirect);
 		} catch (err) {
-			logger.error('[GitHub Callback Error]', err);
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_failed' }).toString();
 			return c.redirect(`/login?${qs}`);
+		}
+	}
+
+	static async render2FASetup(c: Context<HonoEnv>) {
+		const active = await AuthHandler.getActiveSession(c);
+		if (!active) return c.redirect('/login');
+
+		const user = await c.get('authService').getUser(active.session.userId);
+		if (!user) return c.redirect('/login');
+
+		if (user.two_factor_enabled) {
+			return c.html(twoFactorManagePage(c.get('csrfToken'), true));
+		}
+
+		const secret = await generateSecret();
+		await c.get('authService').saveTwoFactorSetupSecret(active.session.userId, secret);
+
+		return c.html(twoFactorSetupPage(c.get('csrfToken'), secret, user.email));
+	}
+
+	static async handle2FASetup(c: Context<HonoEnv>) {
+		const active = await AuthHandler.getActiveSession(c);
+		if (!active) return c.redirect('/login');
+
+		const formData = await c.req.parseBody();
+		const code = formData['code'] as string;
+
+		try {
+			await c.get('authService').enableTwoFactor(active.session.userId, code);
+			return c.redirect('/?success=2fa_enabled');
+		} catch (err) {
+			const secret = await c.get('authService').getTwoFactorSetupSecret(active.session.userId);
+			const user = await c.get('authService').getUser(active.session.userId);
+			const msg = err instanceof AppError ? err.message : 'Invalid code.';
+			return c.html(twoFactorSetupPage(c.get('csrfToken'), secret || '', user?.email || '', msg), 400);
+		}
+	}
+
+	static async handle2FADisable(c: Context<HonoEnv>) {
+		const active = await AuthHandler.getActiveSession(c);
+		if (!active) return c.redirect('/login');
+
+		const formData = await c.req.parseBody();
+		const code = formData['code'] as string;
+
+		try {
+			await c.get('authService').disableTwoFactor(active.session.userId, code);
+			return c.redirect('/?success=2fa_disabled');
+		} catch (err) {
+			const msg = err instanceof AppError ? err.message : 'Failed to disable 2FA.';
+			return c.html(twoFactorManagePage(c.get('csrfToken'), true, msg), 400);
+		}
+	}
+
+	static async render2FAVerify(c: Context<HonoEnv>) {
+		const token = c.req.query('token');
+		const { appId, redirect } = getParams(c);
+		if (!token) return c.redirect(`/login?app_id=${appId}&redirect=${encodeURIComponent(redirect)}`);
+
+		return c.html(twoFactorVerifyPage(c.env.APP_NAME, token, appId, redirect, c.get('csrfToken')));
+	}
+
+	static async handle2FAVerify(c: Context<HonoEnv>) {
+		const formData = await c.req.parseBody();
+		const token = formData['token'] as string;
+		const code = formData['code'] as string;
+		const { appId, redirect } = getParams(c);
+		const { ip, userAgent } = getClientInfo(c);
+
+		if (!token || !code)
+			return c.html(twoFactorVerifyPage(c.env.APP_NAME, token, appId, redirect, c.get('csrfToken'), 'Code is required.'), 400);
+
+		try {
+			const result = await c.get('authService').verifyTwoFactorLogin(token, code, ip, userAgent);
+
+			const cookieOpts = getCookieOptions(c);
+			cookieOpts.maxAge = 86400;
+			setCookie(c, `session_${result.app}`, result.sessionId!, cookieOpts);
+
+			deleteCookie(c, 'csrf_token', getCookieOptions(c));
+
+			return c.redirect(redirect);
+		} catch (err) {
+			const msg = err instanceof AppError ? err.message : 'Invalid code.';
+			return c.html(twoFactorVerifyPage(c.env.APP_NAME, token, appId, redirect, c.get('csrfToken'), msg), 400);
 		}
 	}
 }

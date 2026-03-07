@@ -15,10 +15,18 @@ export interface AppStatus {
 	isSsoFallback: boolean;
 }
 
-export const landingPage = (appName: string, csrfToken: string, apps: AppStatus[], hasAnySession: boolean) => {
+export const landingPage = (appName: string, csrfToken: string, apps: AppStatus[], hasAnySession: boolean, successMsg?: string) => {
+	const successHtml = successMsg
+		? html`<div class="error" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0;">${successMsg}</div>`
+		: '';
+
 	const globalLogoutHtml = hasAnySession
 		? html`
 				<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+					<div class="btn-group" style="margin-bottom: 1rem;">
+						<a href="/change-password" class="btn btn-secondary">Change Password</a>
+						<a href="/2fa/setup" class="btn btn-secondary">Manage 2FA</a>
+					</div>
 					<form method="POST" action="/logout-all-email?app_id=sso&redirect=/" style="width: 100%; margin: 0;">
 						<input type="hidden" name="csrf_token" value="${csrfToken}" />
 						<button type="submit" class="btn btn-danger" style="margin: 0; padding: 0.75rem; width: 100%;">
@@ -36,7 +44,6 @@ export const landingPage = (appName: string, csrfToken: string, apps: AppStatus[
 
 		let actions;
 		if (isLoggedIn) {
-			// PORTAL BEHAVIOR: Added target="_blank" and rel="noopener noreferrer" for security
 			actions = html`
 				<div class="app-actions">
 					<a href="${app.config.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 2;">Open App</a>
@@ -48,7 +55,6 @@ export const landingPage = (appName: string, csrfToken: string, apps: AppStatus[
 				<p style="font-size: 0.75rem; margin-top: 0.25rem;">Signed in as <strong>${app.session?.email}</strong></p>
 			`;
 		} else {
-			// PORTAL BEHAVIOR: Set redirect to / so they stay on Derbent after logging in from the dashboard
 			actions = html`
 				<div class="app-actions">
 					<a href="/login?app_id=${app.config.id}&redirect=/" class="btn btn-primary">Log in</a>
@@ -74,6 +80,7 @@ export const landingPage = (appName: string, csrfToken: string, apps: AppStatus[
 		html`
 			<p class="lead">A derbent was a fortified pass &mdash; a narrow gate between worlds, guarded and deliberate.</p>
 			<p class="lead" style="margin-bottom: 0;">Manage your identity and access across our applications.</p>
+			${successHtml}
 
 			<div class="app-grid">${appsHtml}</div>
 

@@ -37,8 +37,20 @@ export class UserRepository {
 
 	async create(user: Omit<User, 'created_at' | 'updated_at'>): Promise<void> {
 		await this.db
-			.prepare('INSERT INTO users (id, app, email, phash, metadata, email_verified, token_version) VALUES (?, ?, ?, ?, ?, ?, ?)')
-			.bind(user.id, user.app, user.email, user.phash, user.metadata, user.email_verified, user.token_version)
+			.prepare(
+				'INSERT INTO users (id, app, email, phash, metadata, email_verified, token_version, two_factor_secret, two_factor_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+			)
+			.bind(
+				user.id,
+				user.app,
+				user.email,
+				user.phash,
+				user.metadata,
+				user.email_verified,
+				user.token_version,
+				user.two_factor_secret,
+				user.two_factor_enabled,
+			)
 			.run();
 	}
 
@@ -61,5 +73,13 @@ export class UserRepository {
 
 		if (!result) throw new Error('User not found during version increment');
 		return result.token_version;
+	}
+
+	async enableTwoFactor(userId: string, secret: string): Promise<void> {
+		await this.db.prepare('UPDATE users SET two_factor_secret = ?, two_factor_enabled = 1 WHERE id = ?').bind(secret, userId).run();
+	}
+
+	async disableTwoFactor(userId: string): Promise<void> {
+		await this.db.prepare('UPDATE users SET two_factor_secret = NULL, two_factor_enabled = 0 WHERE id = ?').bind(userId).run();
 	}
 }

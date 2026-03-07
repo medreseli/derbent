@@ -1,6 +1,26 @@
 # Derbent Auth Engine
 
-Derbent is a self-hosted, lightweight Authentication & Authorization service built for Cloudflare Workers, D1, and KV. Designed to be your own private identity gatekeeper.
+Self-hosted authentication for Cloudflare Workers.
+
+- Cross-subdomain SSO
+- OAuth login (GitHub)
+- Session hijack protection
+- Built for D1 + KV
+- Sessions stored in KV
+- Audit logging
+- No JWT complexity
+
+```
+User
+  │
+  ▼
+App Worker ── Service Binding ──► Derbent Auth Worker
+  │                                │
+  │                                ├── KV (sessions)
+  │                                └── D1 (users + audit logs)
+  ▼
+Cloudflare Cache
+```
 
 ## Getting Started
 

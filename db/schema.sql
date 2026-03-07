@@ -1,11 +1,13 @@
 CREATE TABLE users (
-    id TEXT PRIMARY KEY,                -- UUIDv7 or NanoID
-    app TEXT NOT NULL,                  -- 'sso', 'geveze', 'hodan', etc.
-    email TEXT NOT NULL,                -- 
-    email_verified BOOLEAN DEFAULT 0,   -- 0 = False, 1 = True
-    phash TEXT NOT NULL,                -- Password Hash - PBKDF2 (Web Crypto API)
-    token_version INTEGER DEFAULT 1,    -- For tracking session validity
-    metadata TEXT DEFAULT '{}',         -- App-specific JSON data
+    id TEXT PRIMARY KEY,                    -- UUIDv7 or NanoID
+    app TEXT NOT NULL,                      -- 'sso', 'geveze', 'hodan', etc.
+    email TEXT NOT NULL,                    -- 
+    email_verified BOOLEAN DEFAULT 0,       -- 0 = False, 1 = True
+    phash TEXT NOT NULL,                    -- Password Hash - PBKDF2 (Web Crypto API)
+    token_version INTEGER DEFAULT 1,        -- For tracking session validity
+    metadata TEXT DEFAULT '{}',             -- App-specific JSON data
+    two_factor_secret TEXT,                 -- Base32 encoded TOTP Secret
+    two_factor_enabled BOOLEAN DEFAULT 0,   -- 0 = False, 1 = True
 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
