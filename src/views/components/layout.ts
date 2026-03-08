@@ -1,5 +1,8 @@
 import { html } from 'hono/html';
 
+// Bump this version number whenever you update main.css to break the cache
+const UI_VERSION = '1';
+
 export const layout = (title: string, body: any, showLogo: boolean = true) => html`
 	<!DOCTYPE html>
 	<html lang="en">
@@ -8,7 +11,7 @@ export const layout = (title: string, body: any, showLogo: boolean = true) => ht
 			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 			<title>${title}</title>
 			<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-			<link rel="stylesheet" href="/main.css" />
+			<link rel="stylesheet" href="/main.css?v=${UI_VERSION}" />
 		</head>
 		<body>
 			<div class="wrapper">

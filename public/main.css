@@ -264,12 +264,22 @@ th {
 	display: inline-block;
 }
 
+/* Invisible bridge to keep hover active between button and dropdown */
+.dropdown::after {
+	content: '';
+	position: absolute;
+	bottom: -0.25rem;
+	left: 0;
+	right: 0;
+	height: 0.25rem;
+	background: transparent;
+}
+
 .dropdown-content {
 	display: none;
 	position: absolute;
 	right: 0;
-	top: 100%;
-	margin-top: 0.25rem;
+	top: calc(100% + 0.25rem); /* Adjusted to sit just below the bridge */
 	background-color: var(--card-bg);
 	min-width: 220px;
 	box-shadow:
