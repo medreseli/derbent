@@ -10,7 +10,7 @@ Self-hosted authentication for Cloudflare Workers.
 - Audit logging
 - No JWT complexity
 
-```
+```text
 User
   │
   ▼
@@ -36,11 +36,17 @@ npm install
 
 You need to create your own Cloudflare resources for this instance:
 
-1. **KV:** `npx wrangler kv namespace create DERBENT_KV`
-2. **D1:** `npx wrangler d1 create derbent-db`
-3. Paste the generated IDs into your `wrangler.jsonc`.
+1. **KV:** `npx wrangler kv namespace create KV`
+2. **D1:** `npx wrangler d1 create db-derbent`
+3. **Queue:** `npx wrangler queues create derbent-email-queue`
+4. Paste the generated IDs into your `wrangler.jsonc`.
 
-### 3. Environment Configuration
+### 3. Registering Your Apps
+
+Derbent uses a strict whitelist to determine which apps are allowed to authenticate.
+Open `src/config/apps.ts` and add your applications (e.g., `geveze`, `namedar`) to the `ALLOWED_APPS` array and `REGISTERED_APPS` object along with their production and development URLs.
+
+### 4. Environment Configuration
 
 Create a `.dev.vars` file for development. For production, use `wrangler secret`.
 
@@ -57,7 +63,9 @@ GITHUB_CLIENT_ID=your_github_client_id
 GITHUB_CLIENT_SECRET=your_github_client_secret
 ```
 
-### 4. Database
+_Note for GitHub Login: You should create 2 OAuth apps in GitHub. One for local testing and the other for production. The Authorization callback URL format is `https://<your-domain>/auth/github/callback`. When you deploy your app, do not forget to use the production OAuth app's client ID and secret._
+
+### 5. Database
 
 Prepare database:
 
@@ -65,7 +73,7 @@ Prepare database:
 npx wrangler d1 migrations apply db-derbent --local
 ```
 
-### 5. Run
+### 6. Run
 
 Run locally:
 
@@ -77,11 +85,26 @@ npm run dev
 
 ## Integration for Consuming Apps
 
-Derbent acts as a sidecar for your other services. Use **Service Bindings** in `wrangler.jsonc` to connect them.
+Derbent acts as a sidecar for your other services. Use **Service Bindings** to connect them without touching the public internet.
 
-### Verification Middleware
+### 1. Wrangler Configuration
 
-Every consuming app (e.g., `geveze`) should use the following pattern to verify users.
+In your consuming app's `wrangler.jsonc`, add the service binding:
+
+```jsonc
+{
+	"services": [
+		{
+			"binding": "DERBENT_SERVICE",
+			"service": "derbent", // Name of the Derbent Worker
+		},
+	],
+}
+```
+
+### 2. Verification Middleware
+
+Every consuming app (e.g., `geveze`, `namedar`) should use the following pattern to verify users.
 **Important:** You must pass the end-user's IP and User-Agent using the Derbent-Client-\* headers to maintain audit logging and session hijack protection.
 
 ```typescript
@@ -116,7 +139,7 @@ export async function verifyWithDerbent(c: Context, appId: string) {
 
 	if (!response) {
 		// The actual request to Derbent via Service Binding.
-		const fetchReq = new Request(`https://auth.internal/verify?app_id=${appId}`, {
+		const fetchReq = new Request(`https://auth.internal/internal/verify?app_id=${appId}`, {
 			headers: {
 				Cookie: cookie,
 				'Derbent-Client-IP': clientIp,

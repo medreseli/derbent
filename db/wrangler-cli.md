@@ -9,7 +9,8 @@ npx wrangler@latest d1 delete db-derbent
 ## For Production
 
 ```
-npx wrangler@latest d1 migrations apply
+npx wrangler@latest d1 migrations apply db-derbent --local
+npx wrangler@latest d1 migrations apply db-derbent --remote
 
 ```
 
