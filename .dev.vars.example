@@ -4,12 +4,3 @@ RESEND_API_KEY=re_your_api_key
 # OPTIONAL SECRETS (Leave blank to disable)
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
-
-# LOCAL OVERRIDES (These can also be set in wrangler.jsonc, 
-# but putting them here overrides them for local dev)
-APP_ENV=development
-LOG_LEVEL=debug
-APP_NAME=Derbent
-COOKIE_DOMAIN=localhost
-BASE_URL=http://localhost:8787
-RESEND_DOMAIN=your-test-domain.com
