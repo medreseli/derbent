@@ -2,12 +2,40 @@
 	"name": "derbent",
 	"version": "0.0.1",
 	"private": true,
+	"cloudflare": {
+		"bindings": {
+			"APP_NAME": {
+				"description": "The name of your Auth service (e.g., 'My Company Auth').",
+				"default": "Derbent Auth"
+			},
+			"BASE_URL": {
+				"description": "The full URL of this worker (e.g., https://auth.mydomain.com)."
+			},
+			"COOKIE_DOMAIN": {
+				"description": "The root domain for SSO cookies (e.g., .mydomain.com). Use 'localhost' for local dev."
+			},
+			"RESEND_DOMAIN": {
+				"description": "Your verified domain in Resend for sending emails (e.g., mail.mydomain.com)."
+			},
+			"RESEND_API_KEY": {
+				"description": "Your Resend API Key (Secret)."
+			},
+			"GITHUB_CLIENT_ID": {
+				"description": "(Optional) GitHub OAuth Client ID. Leave empty to disable GitHub login."
+			},
+			"GITHUB_CLIENT_SECRET": {
+				"description": "(Optional) GitHub OAuth Client Secret. Leave empty to disable GitHub login."
+			}
+		}
+	},
 	"scripts": {
-		"deploy": "wrangler deploy",
+		"db:migrations:apply": "wrangler d1 migrations apply DB --remote",
+		"deploy:github": "npm run db:migrations:apply && wrangler deploy",
+		"deploy": "npm run db:migrations:apply && wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
-		"reset": "rm -rf .wrangler/state/v3 && wrangler d1 execute db-derbent --file './db/schema.sql' --local",
+		"reset": "rm -rf .wrangler/state/v3 && wrangler d1 execute DB --file './db/schema.sql' --local",
 		"cf-typegen": "wrangler types",
 		"yay": "wrangler deploy",
 		"çat": "wrangler dev",

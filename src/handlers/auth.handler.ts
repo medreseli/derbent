@@ -118,7 +118,10 @@ export class AuthHandler {
 		const { appId, redirect } = getParams(c);
 		const githubClientId = c.env.GITHUB_CLIENT_ID;
 		const errorParam = c.req.query('error');
-		const errorMsg = errorParam === 'github_failed' ? 'GitHub authentication failed. Please try again.' : undefined;
+
+		let errorMsg = undefined;
+		if (errorParam === 'github_failed') errorMsg = 'GitHub authentication failed. Please try again.';
+		if (errorParam === 'github_not_configured') errorMsg = 'GitHub login is not enabled on this instance.';
 
 		return c.html(loginPage(c.env.APP_NAME, appId, redirect, csrfToken, errorMsg, undefined, githubClientId));
 	}
@@ -459,6 +462,12 @@ export class AuthHandler {
 
 	static async handleGitHubLogin(c: Context<HonoEnv>) {
 		const { appId, redirect } = getParams(c);
+
+		if (!c.env.GITHUB_CLIENT_ID) {
+			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_not_configured' }).toString();
+			return c.redirect(`/login?${qs}`);
+		}
+
 		const nonce = crypto.randomUUID();
 		const cookieOpts = getCookieOptions(c);
 		cookieOpts.maxAge = 600;
@@ -487,6 +496,11 @@ export class AuthHandler {
 				redirect = parsed.redirect || '/';
 				nonceFromState = parsed.nonce || '';
 			} catch (e) {}
+		}
+
+		if (!c.env.GITHUB_CLIENT_ID || !c.env.GITHUB_CLIENT_SECRET) {
+			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_not_configured' }).toString();
+			return c.redirect(`/login?${qs}`);
 		}
 
 		if (!code || !state) return c.redirect(`/login?app_id=${appId}&redirect=${encodeURIComponent(redirect)}`);

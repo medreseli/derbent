@@ -25,7 +25,7 @@
 	"vars": {
 		"APP_ENV": "production",
 		"LOG_LEVEL": "warn",
-		"APP_NAME": "Derbent Auth",
+		"APP_NAME": "Derbent",
 		"BASE_URL": "https://derbent.zerdalu.com",
 		"PBKDF2_ITERATIONS": "100000",
 		"AUDIT_LOG_RETENTION_DAYS": "30",

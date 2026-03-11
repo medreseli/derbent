@@ -4,11 +4,10 @@ Self-hosted authentication for Cloudflare Workers.
 
 - Cross-subdomain SSO
 - OAuth login (GitHub)
+- Session-based auth (no JWTs)
 - Session hijack protection
-- Built for D1 + KV
-- Sessions stored in KV
+- Built using D1 + KV
 - Audit logging
-- No JWT complexity
 
 ```text
 User
@@ -24,7 +23,21 @@ Cloudflare Cache
 
 ## Getting Started
 
-### 1. Setup
+You can deploy Derbent using the automated 1-click deploy button or manually via the CLI.
+
+### Option 1: 1-Click Deploy (Recommended)
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/medreseli/derbent)
+
+The button above will automatically clone this repository to your GitHub account, provision your Cloudflare resources (KV, D1, Queues), run the required database migrations, and safely prompt you for the necessary environment variables.
+
+_Once deployed, clone your new repository locally and proceed to **Step 3: Registering Your Apps** below to configure your allowed applications._
+
+---
+
+### Option 2: Manual Setup
+
+#### 1. Setup
 
 ```bash
 git clone https://github.com/medreseli/derbent.git
@@ -32,7 +45,7 @@ cd derbent
 npm install
 ```
 
-### 2. Infrastructure Setup
+#### 2. Infrastructure Setup
 
 You need to create your own Cloudflare resources for this instance:
 
@@ -41,12 +54,12 @@ You need to create your own Cloudflare resources for this instance:
 3. **Queue:** `npx wrangler queues create derbent-email-queue`
 4. Paste the generated IDs into your `wrangler.jsonc`.
 
-### 3. Registering Your Apps
+#### 3. Registering Your Apps
 
 Derbent uses a strict whitelist to determine which apps are allowed to authenticate.
 Open `src/config/apps.ts` and add your applications (e.g., `geveze`, `namedar`) to the `ALLOWED_APPS` array and `REGISTERED_APPS` object along with their production and development URLs.
 
-### 4. Environment Configuration
+#### 4. Environment Configuration
 
 Create a `.dev.vars` file for development. For production, use `wrangler secret`.
 
@@ -65,7 +78,7 @@ GITHUB_CLIENT_SECRET=your_github_client_secret
 
 _Note for GitHub Login: You should create 2 OAuth apps in GitHub. One for local testing and the other for production. The Authorization callback URL format is `https://<your-domain>/auth/github/callback`. When you deploy your app, do not forget to use the production OAuth app's client ID and secret._
 
-### 5. Database
+#### 5. Database
 
 Prepare database:
 
@@ -73,7 +86,7 @@ Prepare database:
 npx wrangler d1 migrations apply db-derbent --local
 ```
 
-### 6. Run
+#### 6. Run
 
 Run locally:
 

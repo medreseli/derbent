@@ -26,6 +26,6 @@ export const REGISTERED_APPS: Record<AppId, AppConfig> = {
 		name: 'Nâmedâr',
 		description: 'OMR solution for examinations.',
 		prodUrl: 'https://namedar.zerdalu.com',
-		devUrl: 'http://localhost:8788', // Adjust this to Nâmedâr's actual local port
+		devUrl: 'http://localhost:3000', // Adjust this to Nâmedâr's actual local port
 	},
 };
