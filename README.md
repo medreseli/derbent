@@ -199,3 +199,15 @@ npm run test
 2. **Rate Limiting:** Protects against brute force.
 3. **Audit Logging:** Every action is recorded in the D1 `audit_logs` table.
 4. **Hijack Prevention:** Sessions are bound to `User-Agent` and `IP`.
+
+---
+
+## Use Cases
+
+Derbent works well for:
+
+• SaaS apps on Cloudflare Workers  
+• Multi-subdomain applications  
+• Edge-native APIs  
+• Self-hosted authentication systems  
+• Replacing Auth0 for Workers projects

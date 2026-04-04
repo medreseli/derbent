@@ -2,7 +2,7 @@
  * ADD NEW APPS HERE
  * This list strictly controls which apps are allowed to authenticate via Derbent.
  */
-export const ALLOWED_APPS = ['sso', 'namedar'] as const;
+export const ALLOWED_APPS = ['sso', 'hodan', 'namedar'] as const;
 export type AppId = (typeof ALLOWED_APPS)[number];
 
 export interface AppConfig {
@@ -21,10 +21,17 @@ export const REGISTERED_APPS: Record<AppId, AppConfig> = {
 		prodUrl: 'https://derbent.zerdalu.com',
 		devUrl: 'http://localhost:8787',
 	},
+	hodan: {
+		id: 'hodan',
+		name: 'Hodan',
+		description: 'Your storyboarding studio',
+		prodUrl: 'https://namedar.zerdalu.com',
+		devUrl: 'http://localhost:3000', // Adjust this to Nâmedâr's actual local port
+	},
 	namedar: {
 		id: 'namedar',
 		name: 'Nâmedâr',
-		description: 'OMR solution for examinations.',
+		description: 'OMR solution for examinations',
 		prodUrl: 'https://namedar.zerdalu.com',
 		devUrl: 'http://localhost:3000', // Adjust this to Nâmedâr's actual local port
 	},
