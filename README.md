@@ -174,7 +174,56 @@ export async function verifyWithDerbent(c: Context, appId: string) {
 
 _Note: Derbent sends `Vary: Cookie` and `Cache-Control: private, max-age=60` by default._
 
----
+### 3. Internal API Reference
+
+Consuming apps communicate with Derbent internally via Service Bindings.
+
+#### `GET /internal/verify`
+
+Verifies the session cookie and returns the user's session data.
+
+**Request:**
+
+- **Query:** `?app_id=your_app_id` (e.g., `hodan`, `sso`)
+- **Headers:**
+  - `Cookie`: The raw cookie string from the user's request.
+  - `Derbent-Client-IP`: The user's IP (for hijack protection).
+  - `Derbent-Client-UA`: The user's User-Agent (for hijack protection).
+
+**Response (200 OK):**
+
+```json
+{
+	"userId": "018f3a5b-7b2a-7c81-9d4f-123456789abc",
+	"email": "user@example.com",
+	"role": "user",
+	"appId": "hodan",
+	"createdAt": 1709654321000,
+	"ip": "203.0.113.42",
+	"userAgent": "Mozilla/5.0...",
+	"tokenVersion": 1,
+	"data": {} // Custom app-specific metadata
+}
+```
+
+_Errors: Returns `401 Unauthorized` or `403 Forbidden` if the session is invalid, expired, or tied to a different IP/UA context._
+
+#### `POST /internal/logout`
+
+Destroys the current active session.
+
+**Request:**
+
+- **Query:** `?app_id=your_app_id`
+- **Headers:** Same as `/internal/verify`
+
+**Response (200 OK):**
+
+```json
+{
+	"success": true
+}
+```
 
 ## 🧪 Testing
 
