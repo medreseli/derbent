@@ -53,3 +53,18 @@ export const ChangePasswordSchema = v.pipe(
 	}),
 	v.check((input) => input.newPassword === input.confirmNewPassword, 'New passwords do not match.'),
 );
+
+// Admin Schemas
+export const AdminUpdateUserSchema = v.object({
+	metadata: v.optional(v.record(v.string(), v.any())),
+	email_verified: v.optional(v.union([v.literal(0), v.literal(1)])),
+	app: v.optional(v.string()),
+});
+
+export const AdminForcePasswordSchema = v.object({
+	newPassword: PasswordSchema,
+});
+
+export const AdminLockAccountSchema = v.object({
+	locked: v.boolean('Locked status must be a boolean.'),
+});

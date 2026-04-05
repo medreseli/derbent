@@ -112,6 +112,17 @@ export class AuthService {
 			throw new AppError('Invalid email or password', 401);
 		}
 
+		if (user.is_locked === 1) {
+			await this.auditLogRepo.log({
+				action: 'login_failed_locked',
+				email,
+				ip,
+				userAgent,
+				details: { appId },
+			});
+			throw new AppError('This account has been locked. Please contact support.', 403);
+		}
+
 		if (user.email_verified === 0) {
 			throw new AppError('EMAIL_NOT_VERIFIED', 403);
 		}
@@ -135,11 +146,16 @@ export class AuthService {
 				token_version: 1,
 				two_factor_secret: null,
 				two_factor_enabled: 0,
+				is_locked: 0,
 			});
 			user = await this.userRepo.findById(userId);
 		}
 
 		if (!user) throw new AppError('Failed to sync user', 500);
+
+		if (user.is_locked === 1) {
+			throw new AppError('This account has been locked. Please contact support.', 403);
+		}
 
 		return this.handleSuccessfulAuthentication(user, appId, ip, userAgent, `oauth_${provider}`);
 	}
@@ -168,6 +184,7 @@ export class AuthService {
 			token_version: 1,
 			two_factor_secret: null,
 			two_factor_enabled: 0,
+			is_locked: 0,
 		});
 
 		await this.auditLogRepo.log({ action: 'register', userId, email, ip, userAgent, details: { appId } });

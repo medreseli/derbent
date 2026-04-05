@@ -26,13 +26,13 @@ export const REGISTERED_APPS: Record<AppId, AppConfig> = {
 		name: 'Hodan',
 		description: 'Your storyboarding studio',
 		prodUrl: 'https://namedar.zerdalu.com',
-		devUrl: 'http://localhost:3000', // Adjust this to Nâmedâr's actual local port
+		devUrl: 'http://localhost:5173', // Adjust this to Nâmedâr's actual local port
 	},
 	namedar: {
 		id: 'namedar',
 		name: 'Nâmedâr',
 		description: 'OMR solution for examinations',
 		prodUrl: 'https://namedar.zerdalu.com',
-		devUrl: 'http://localhost:3000', // Adjust this to Nâmedâr's actual local port
+		devUrl: 'http://localhost:5173', // Adjust this to Nâmedâr's actual local port
 	},
 };

@@ -225,7 +225,22 @@ Destroys the current active session.
 }
 ```
 
-## 🧪 Testing
+## Admin Dashboard API
+
+Derbent exposes privileged endpoints to manage users and system security. These endpoints must be accessed with an `Authorization: Bearer <ADMIN_SECRET>` header.
+
+### Users Management
+
+| Endpoint                    | Method   | Description                                   |
+| :-------------------------- | :------- | :-------------------------------------------- |
+| `/admin/users`              | `GET`    | List users (`?page=1&limit=20&search=email@`) |
+| `/admin/users/:id`          | `GET`    | Get a single user's detailed profile          |
+| `/admin/users/:id`          | `PATCH`  | Update user metadata, app, or email status    |
+| `/admin/users/:id/password` | `POST`   | Force reset a user's password                 |
+| `/admin/users/:id/2fa`      | `DELETE` | Disable 2FA                                   |
+| `/admin/users/:id`          | `DELETE` | Permanently delete a user & audit logs        |
+
+## Testing
 
 ```bash
 npm run test
@@ -260,3 +275,7 @@ Derbent works well for:
 • Edge-native APIs  
 • Self-hosted authentication systems  
 • Replacing Auth0 for Workers projects
+
+## Assets
+
+- Icon - https://www.svgrepo.com/svg/471884/shield-01

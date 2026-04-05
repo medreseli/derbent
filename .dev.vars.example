@@ -2,5 +2,6 @@
 RESEND_API_KEY=re_your_api_key
 
 # OPTIONAL SECRETS (Leave blank to disable)
+ADMIN_SECRET=
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=

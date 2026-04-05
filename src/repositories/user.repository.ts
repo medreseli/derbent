@@ -38,7 +38,7 @@ export class UserRepository {
 	async create(user: Omit<User, 'created_at' | 'updated_at'>): Promise<void> {
 		await this.db
 			.prepare(
-				'INSERT INTO users (id, app, email, phash, metadata, email_verified, token_version, two_factor_secret, two_factor_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				'INSERT INTO users (id, app, email, phash, metadata, email_verified, token_version, two_factor_secret, two_factor_enabled, is_locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
 			)
 			.bind(
 				user.id,
@@ -50,7 +50,15 @@ export class UserRepository {
 				user.token_version,
 				user.two_factor_secret,
 				user.two_factor_enabled,
+				user.is_locked,
 			)
+			.run();
+	}
+
+	async setLockedStatus(userId: string, locked: boolean): Promise<void> {
+		await this.db
+			.prepare('UPDATE users SET is_locked = ? WHERE id = ?')
+			.bind(locked ? 1 : 0, userId)
 			.run();
 	}
 
@@ -81,5 +89,75 @@ export class UserRepository {
 
 	async disableTwoFactor(userId: string): Promise<void> {
 		await this.db.prepare('UPDATE users SET two_factor_secret = NULL, two_factor_enabled = 0 WHERE id = ?').bind(userId).run();
+	}
+
+	// --- ADMIN API METHODS ---
+
+	async findMany(limit: number, offset: number, search?: string): Promise<User[]> {
+		let query = 'SELECT * FROM users';
+		const params: any[] = [];
+
+		if (search) {
+			query += ' WHERE email LIKE ? OR id = ?';
+			params.push(`%${search}%`, search);
+		}
+
+		query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+		params.push(limit, offset);
+
+		const { results } = await this.db
+			.prepare(query)
+			.bind(...params)
+			.all<User>();
+		return results || [];
+	}
+
+	async count(search?: string): Promise<number> {
+		let query = 'SELECT COUNT(*) as total FROM users';
+		const params: any[] = [];
+
+		if (search) {
+			query += ' WHERE email LIKE ? OR id = ?';
+			params.push(`%${search}%`, search);
+		}
+
+		const result = await this.db
+			.prepare(query)
+			.bind(...params)
+			.first<{ total: number }>();
+		return result?.total || 0;
+	}
+
+	async update(id: string, data: Partial<Pick<User, 'metadata' | 'email_verified' | 'app'>>): Promise<User | null> {
+		const updates: string[] = [];
+		const params: any[] = [];
+
+		if (data.metadata !== undefined) {
+			updates.push('metadata = ?');
+			params.push(data.metadata);
+		}
+		if (data.email_verified !== undefined) {
+			updates.push('email_verified = ?');
+			params.push(data.email_verified);
+		}
+		if (data.app !== undefined) {
+			updates.push('app = ?');
+			params.push(data.app);
+		}
+
+		if (updates.length > 0) {
+			params.push(id);
+			const query = `UPDATE users SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+			await this.db
+				.prepare(query)
+				.bind(...params)
+				.run();
+		}
+
+		return this.findById(id);
+	}
+
+	async delete(id: string): Promise<void> {
+		await this.db.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
 	}
 }

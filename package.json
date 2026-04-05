@@ -20,6 +20,9 @@
 			"RESEND_API_KEY": {
 				"description": "Your Resend API Key (Secret)."
 			},
+			"ADMIN_SECRET": {
+				"description": "(Optional) Secret key used to authorize API requests from your Admin Dashboard."
+			},
 			"GITHUB_CLIENT_ID": {
 				"description": "(Optional) GitHub OAuth Client ID. Leave empty to disable GitHub login."
 			},
@@ -49,8 +52,8 @@
 		"wrangler": "^4.80.0"
 	},
 	"dependencies": {
-		"hono": "^4.12.7",
+		"hono": "^4.12.10",
 		"qrcode-svg": "^1.1.0",
-		"valibot": "^1.2.0"
+		"valibot": "^1.3.1"
 	}
 }

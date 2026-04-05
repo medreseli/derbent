@@ -17,6 +17,8 @@ import { UserTokenVersionRepository } from './repositories/user-token-version.re
 import { AuditLogRepository } from './repositories/audit-log.repository';
 import { LoginAttemptRepository } from './repositories/login-attempt.repository';
 import { EmailQueueMessage } from './types/queue';
+import { adminAuth } from './middleware/admin.middleware';
+import { AdminHandler } from './handlers/admin.handler';
 
 const app = new Hono<HonoEnv>();
 
@@ -105,6 +107,22 @@ app.get('/verify-magic-link', csrfOnGet(), AuthHandler.handleVerifyMagicLink);
 // OAuth Routes
 app.get('/auth/github', AuthHandler.handleGitHubLogin);
 app.get('/auth/github/callback', AuthHandler.handleGitHubCallback);
+
+// Admin Dashboard Routes
+const adminRoutes = new Hono<HonoEnv>();
+adminRoutes.use('*', adminAuth());
+
+adminRoutes.get('/users', AdminHandler.getUsers);
+adminRoutes.get('/users/:id', AdminHandler.getUser);
+adminRoutes.patch('/users/:id', AdminHandler.updateUser);
+adminRoutes.post('/users/:id/password', AdminHandler.forceResetPassword);
+adminRoutes.delete('/users/:id/2fa', AdminHandler.disable2FA);
+adminRoutes.delete('/users/:id', AdminHandler.deleteUser);
+
+adminRoutes.delete('/users/:id/sessions', AdminHandler.revokeSessions);
+adminRoutes.post('/users/:id/lock', AdminHandler.lockAccount);
+
+app.route('/admin', adminRoutes);
 
 export default {
 	fetch: app.fetch,

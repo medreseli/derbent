@@ -8,6 +8,7 @@ CREATE TABLE users (
     metadata TEXT DEFAULT '{}',             -- App-specific JSON data
     two_factor_secret TEXT,                 -- Base32 encoded TOTP Secret
     two_factor_enabled BOOLEAN DEFAULT 0,   -- 0 = False, 1 = True
+    is_locked BOOLEAN DEFAULT 0,            -- 0 = False, 1 = True
 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
