@@ -2,6 +2,40 @@
 	"name": "derbent",
 	"version": "0.0.1",
 	"private": true,
+	"type": "module",
+	"scripts": {
+		"db:migrations:apply": "wrangler d1 migrations apply DB --remote",
+		"deploy": "npm run db:migrations:apply && wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"test": "vitest",
+		"reset": "rm -rf .wrangler/state/v3 && wrangler d1 execute DB --file './db/schema.sql' --local",
+		"cf-typegen": "wrangler types",
+		"build:css": "tailwindcss -i ./src/app.css -o ./public/main.css --minify",
+		"çat": "vite dev",
+		"yay": "npm run build:css && wrangler deploy",
+		"nevile": "wrangler types"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "^0.14.1",
+		"@hono/vite-build": "^1.11.1",
+		"@hono/vite-dev-server": "^0.25.1",
+		"@tailwindcss/cli": "^4.2.2",
+		"@tailwindcss/vite": "^4.2.2",
+		"@types/node": "^25.3.0",
+		"@types/qrcode-svg": "^1.1.5",
+		"@types/react": "^19.2.14",
+		"tailwindcss": "^4.2.2",
+		"typescript": "^5.5.2",
+		"vite": "^8.0.5",
+		"vitest": "^4.1.2",
+		"wrangler": "^4.80.0"
+	},
+	"dependencies": {
+		"hono": "^4.12.10",
+		"qrcode-svg": "^1.1.0",
+		"valibot": "^1.3.1"
+	},
 	"cloudflare": {
 		"bindings": {
 			"APP_NAME": {
@@ -30,30 +64,5 @@
 				"description": "(Optional) GitHub OAuth Client Secret. Leave empty to disable GitHub login."
 			}
 		}
-	},
-	"scripts": {
-		"db:migrations:apply": "wrangler d1 migrations apply DB --remote",
-		"deploy": "npm run db:migrations:apply && wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"test": "vitest",
-		"reset": "rm -rf .wrangler/state/v3 && wrangler d1 execute DB --file './db/schema.sql' --local",
-		"cf-typegen": "wrangler types",
-		"yay": "wrangler deploy",
-		"çat": "wrangler dev",
-		"nevile": "wrangler types"
-	},
-	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "^0.14.1",
-		"@types/node": "^25.3.0",
-		"@types/qrcode-svg": "^1.1.5",
-		"typescript": "^5.5.2",
-		"vitest": "^4.1.2",
-		"wrangler": "^4.80.0"
-	},
-	"dependencies": {
-		"hono": "^4.12.10",
-		"qrcode-svg": "^1.1.0",
-		"valibot": "^1.3.1"
 	}
 }

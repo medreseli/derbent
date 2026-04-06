@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { html } from 'hono/html';
 import { secureHeaders } from 'hono/secure-headers';
 import { AuthHandler } from './handlers/auth.handler';
 import { InternalHandler } from './handlers/internal.handler';
@@ -12,7 +11,7 @@ import { AuthService } from './services/auth.service';
 import { EmailService } from './services/email.service';
 import { HonoEnv } from './types/hono-env';
 import { Logger } from './utils/logger';
-import { layout } from './views/components/layout';
+import { renderer } from './views/components/layout';
 import { UserTokenVersionRepository } from './repositories/user-token-version.repository';
 import { AuditLogRepository } from './repositories/audit-log.repository';
 import { LoginAttemptRepository } from './repositories/login-attempt.repository';
@@ -23,6 +22,7 @@ import { AdminHandler } from './handlers/admin.handler';
 const app = new Hono<HonoEnv>();
 
 app.use('*', secureHeaders());
+app.get('*', renderer);
 
 app.use('*', async (c, next) => {
 	const logger = new Logger(c.env.LOG_LEVEL || 'info');
@@ -52,15 +52,6 @@ app.use('*', async (c, next) => {
 	c.set('authService', authService);
 
 	await next();
-});
-
-app.notFound((c) => {
-	return c.html(layout('Page Not Found', html`<p class="subtitle">The page you are looking for does not exist.</p>`), 404);
-});
-
-app.onError((err, c) => {
-	console.error(err);
-	return c.html(layout('Internal Error', html`<div class="error">Something went wrong. Please try again later.</div>`), 500);
 });
 
 app.get('/', csrfOnGet(), AuthHandler.index);

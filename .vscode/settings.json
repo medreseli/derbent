@@ -1,14 +1,18 @@
 {
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.fontSize": 14,
-  "window.zoomLevel": 0,
-  "files.exclude": {
-    "**/node_modules": true,
-    ".wrangler": true
-  },
-  "files.associations": {
-    "wrangler.json": "jsonc"
-  },
-  "typescript.tsdk": "node_modules/typescript/lib"
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.fontSize": 14,
+	"window.zoomLevel": 0,
+	"files.exclude": {
+		"**/node_modules": true,
+		".wrangler": true,
+		".prettierrc": true,
+		"tsconfig.json": true,
+		"worker-configuration.d.ts": true,
+		"package-lock.json": true
+	},
+	"files.associations": {
+		"wrangler.json": "jsonc",
+		"*.css": "tailwindcss"
+	}
 }

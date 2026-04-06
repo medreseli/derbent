@@ -1,59 +1,23 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created with Inkscape (http://www.inkscape.org/) -->
-
-<svg
-   width="512"
-   height="432"
-   viewBox="0 0 512 432"
-   version="1.1"
-   id="svg1"
-   sodipodi:docname="alem-derbent.svg"
-   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#ffffff"
-     bordercolor="#000000"
-     borderopacity="0.25"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="0.0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     inkscape:document-units="mm"
-     inkscape:zoom="1.0078851"
-     inkscape:cx="188.51355"
-     inkscape:cy="282.77033"
-     inkscape:window-width="1920"
-     inkscape:window-height="1011"
-     inkscape:window-x="0"
-     inkscape:window-y="32"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
-  <defs
-     id="defs1" />
-  <g
-     inkscape:label="Layer 1"
-     inkscape:groupmode="layer"
-     id="layer1">
-    <path
-       id="path4"
-       style="fill:#333333;stroke:#ffffff;stroke-width:0;stroke-dasharray:none"
-       d="M 309.14458,8.66386 V 423.33614 C 422.69785,401.98454 503.71013,315.89151 504.01333,216.24602 503.97925,116.4161 422.90757,30.055247 309.14458,8.66386 Z M 202.85543,9.155918 C 89.302149,30.507516 8.289869,116.60055 7.986671,216.24602 8.289868,315.89151 89.302149,401.98454 202.85543,423.33614 Z"
-       sodipodi:nodetypes="cccccccc" />
-    <circle
-       style="fill:#ffffff;stroke:#ffffff;stroke-width:0;stroke-dasharray:none"
-       id="path1"
-       cx="256"
-       cy="216"
-       r="131.23993" />
-    <circle
-       style="fill:#ff8080;stroke:#333333;stroke-width:0;stroke-dasharray:none;stroke-opacity:0.570104"
-       id="path5"
-       cx="256"
-       cy="216"
-       r="86.033699" />
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <style>
+    :root { color: #18181b; }
+    @media (prefers-color-scheme: dark) {
+      :root { color: #f4f4f5; }
+    }
+  </style>
+  <path 
+    d="M11.302 21.6455C11.5234 21.7747 11.6341 21.8393 11.7903 21.8728C11.9116 21.8988 12.0884 21.8988 12.2097 21.8728C12.3659 21.8393 12.4766 21.7747 12.698 21.6455C14.646 20.5091 20 16.9391 20 12.0307V7.24825C20 6.44873 20 6.04898 19.8692 5.70535C19.7537 5.40179 19.566 5.13093 19.3223 4.91618C19.0465 4.67309 18.6722 4.53273 17.9236 4.252L12.5618 2.24132C12.3539 2.16335 12.25 2.12438 12.143 2.10893C12.0482 2.09522 11.9518 2.09522 11.857 2.10893C11.75 2.12438 11.6461 2.16335 11.4382 2.24132L6.0764 4.252C5.3278 4.53273 4.9535 4.67309 4.67766 4.91618C4.43398 5.13093 4.24627 5.40179 4.13076 5.70535C4 6.04898 4 6.44873 4 7.24825V12.0307C4 16.9391 9.35396 20.5091 11.302 21.6455Z" 
+    stroke="currentColor" 
+    stroke-width="2" 
+    stroke-linecap="round" 
+    stroke-linejoin="round"
+  />
+  <rect 
+    x="9.4332" 
+    y="5.8985" 
+    width="5.1336" 
+    height="10.763" 
+    ry="1.4616" 
+    fill="currentColor"
+  />
 </svg>

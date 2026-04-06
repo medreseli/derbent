@@ -1,8 +1,6 @@
 import { MiddlewareHandler } from 'hono';
-import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+import { getCookie, setCookie } from 'hono/cookie';
 import { HonoEnv } from '../types/hono-env';
-import { layout } from '../views/components/layout';
-import { html } from 'hono/html';
 import { getCookieOptions } from '../utils/cookie';
 
 export const csrfOnGet = (): MiddlewareHandler<HonoEnv> => {
@@ -34,9 +32,12 @@ export const csrfOnPost = (): MiddlewareHandler<HonoEnv> => {
 			logger.error(`  - Cookie Token: ${csrfTokenFromCookies || 'MISSING'}`);
 			logger.error(`  - Form Token:   ${csrfTokenFromForm || 'MISSING'}`);
 
-			return c.html(
-				layout('Forbidden', html`<p class="lead">Security token mismatch. Please go back, refresh the page, and try again.</p>`),
-				403,
+			c.status(403);
+			return c.render(
+				<div className="text-center">
+					<h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-4">Forbidden</h2>
+					<p className="text-sm text-zinc-600">Security token mismatch. Please go back, refresh the page, and try again.</p>
+				</div>,
 			);
 		}
 

@@ -1,7 +1,5 @@
 import { MiddlewareHandler } from 'hono';
 import { HonoEnv } from '../types/hono-env';
-import { layout } from '../views/components/layout';
-import { html } from 'hono/html';
 
 export const rateLimit = (): MiddlewareHandler<HonoEnv> => {
 	return async (c, next) => {
@@ -12,15 +10,14 @@ export const rateLimit = (): MiddlewareHandler<HonoEnv> => {
 
 		if (!success) {
 			console.warn(`Rate limit exceeded for IP: ${ip}`);
-			return c.html(
-				layout(
-					'Too Many Requests',
-					html`
-						<p class="lead">You've made too many attempts in a short period.</p>
-						<p class="subtitle">Please wait a minute and try again.</p>
-					`,
-				),
-				429,
+
+			c.status(429);
+			return c.render(
+				<div className="text-center">
+					<h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-4">Too Many Requests</h2>
+					<p className="mb-2 text-sm text-zinc-600">You've made too many attempts in a short period.</p>
+					<p className="text-sm text-zinc-500">Please wait a minute and try again.</p>
+				</div>,
 			);
 		}
 
