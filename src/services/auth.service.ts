@@ -12,6 +12,7 @@ import { generateUUIDv7 } from '../utils/uuid';
 import { User } from '../types/user';
 import { LoginResult } from '../types/auth';
 import { verifyTOTP } from '../utils/totp';
+import { AppId } from '../config/apps';
 
 export class AuthService {
 	constructor(
@@ -160,7 +161,7 @@ export class AuthService {
 		return this.handleSuccessfulAuthentication(user, appId, ip, userAgent, `oauth_${provider}`);
 	}
 
-	async register(email: string, password: string, appId: string, redirect: string, ip: string, userAgent: string): Promise<void> {
+	async register(email: string, password: string, appId: AppId, redirect: string, ip: string, userAgent: string): Promise<void> {
 		const existingSso = await this.userRepo.findByEmailAndApp(email, 'sso');
 		if (existingSso) throw new AppError('An SSO account already exists for this email.');
 
@@ -314,7 +315,7 @@ export class AuthService {
 		await this.emailService.sendPasswordResetEmail(email, token);
 	}
 
-	async resetPassword(token: string, newPassword: string, ip: string, userAgent: string): Promise<string> {
+	async resetPassword(token: string, newPassword: string, ip: string, userAgent: string): Promise<AppId> {
 		const userId = await this.tokenRepo.getUserIdFromResetToken(token);
 		if (!userId) {
 			await this.auditLogRepo.log({
@@ -335,7 +336,7 @@ export class AuthService {
 		await this.tokenRepo.deletePasswordResetToken(token);
 
 		await this.auditLogRepo.log({ action: 'password_reset_success', userId, ip, userAgent });
-		return user.app;
+		return user.app as AppId;
 	}
 
 	async changePassword(userId: string, currentPassword: string, newPassword: string, ip: string, userAgent: string): Promise<void> {

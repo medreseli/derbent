@@ -1,3 +1,5 @@
+import { AppId } from '../../config/apps';
+
 export const TwoFactorVerifyPage = ({
 	appName,
 	token,
@@ -8,7 +10,7 @@ export const TwoFactorVerifyPage = ({
 }: {
 	appName: string;
 	token: string;
-	appId: string;
+	appId: AppId;
 	redirect: string;
 	csrfToken: string;
 	error?: string;
@@ -16,8 +18,8 @@ export const TwoFactorVerifyPage = ({
 	const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
 
 	return (
-		<>
-			<h2 className="text-xl font-bold text-center tracking-tight text-zinc-900 mb-2">Two-Factor Authentication</h2>
+		<div className="px-4 sm:px-12">
+			<h2 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900">Two-Factor Authentication</h2>
 			<p className="mb-8 text-center text-sm text-zinc-600">
 				Enter the code from your authenticator app to continue to <strong className="text-zinc-900">{appName}</strong>.
 			</p>
@@ -28,7 +30,7 @@ export const TwoFactorVerifyPage = ({
 				<input type="hidden" name="token" value={token} />
 
 				<div>
-					<label className="block text-sm font-medium leading-6 text-zinc-900">6-digit Code</label>
+					<label className="block text-sm leading-6 font-medium text-zinc-900">6-digit Code</label>
 					<input
 						type="text"
 						name="code"
@@ -38,7 +40,7 @@ export const TwoFactorVerifyPage = ({
 						pattern="[0-9]{6}"
 						maxLength={6}
 						autoFocus
-						className="form-input mt-2 text-center tracking-widest text-lg"
+						className="form-input mt-2 px-3 text-center text-lg tracking-widest"
 					/>
 				</div>
 
@@ -53,6 +55,6 @@ export const TwoFactorVerifyPage = ({
 					Back to login
 				</a>
 			</p>
-		</>
+		</div>
 	);
 };

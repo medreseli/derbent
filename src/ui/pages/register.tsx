@@ -1,25 +1,28 @@
+import { AppId, REGISTERED_APPS } from '../../config/apps';
+
 export const RegisterPage = ({
 	appId,
 	redirect,
 	csrfToken,
 	error,
 }: {
-	appId: string;
+	appId: AppId;
 	redirect: string;
 	csrfToken: string;
 	error?: string;
 }) => {
 	const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
-	const appName = appId === 'sso' ? 'Derbent' : appId;
+	const appInfo = REGISTERED_APPS[appId];
+	const appName = appInfo ? appInfo.name : 'Derbent';
 
 	return (
-		<>
-			<p className="mb-8 text-center text-sm text-zinc-600">
+		<div className="px-4 sm:px-12">
+			<p className="mb-8 text-center text-lg text-zinc-600">
 				{appId === 'sso' ? (
 					<>Create a global account to access all services</>
 				) : (
 					<>
-						Create an account to access <span className="font-semibold text-zinc-900">{appId}</span>
+						Create an account to access <span className="font-semibold text-zinc-900">{appName}</span>
 					</>
 				)}
 			</p>
@@ -28,18 +31,18 @@ export const RegisterPage = ({
 
 			<form method="post" action={`/register?${qs}`} className="space-y-6">
 				<div>
-					<label className="block text-sm font-medium leading-6 text-zinc-900">Email address</label>
-					<input type="email" name="email" required placeholder="name@example.com" autoFocus className="form-input mt-2" />
+					<label className="block text-sm leading-6 font-medium text-zinc-900">Email address</label>
+					<input type="email" name="email" required placeholder="name@example.com" autoFocus className="form-input mt-2 px-3" />
 				</div>
 
 				<div>
-					<label className="block text-sm font-medium leading-6 text-zinc-900">Password</label>
-					<input type="password" name="password" required placeholder="Minimum 8 characters" className="form-input mt-2" />
+					<label className="block text-sm leading-6 font-medium text-zinc-900">Password</label>
+					<input type="password" name="password" required placeholder="Minimum 8 characters" className="form-input mt-2 px-3" />
 				</div>
 
 				<div>
-					<label className="block text-sm font-medium leading-6 text-zinc-900">Confirm password</label>
-					<input type="password" name="confirmPassword" required placeholder="••••••••" className="form-input mt-2" />
+					<label className="block text-sm leading-6 font-medium text-zinc-900">Confirm password</label>
+					<input type="password" name="confirmPassword" required placeholder="••••••••" className="form-input mt-2 px-3" />
 				</div>
 
 				<input type="hidden" name="csrf_token" value={csrfToken} />
@@ -54,6 +57,6 @@ export const RegisterPage = ({
 					Sign in
 				</a>
 			</p>
-		</>
+		</div>
 	);
 };

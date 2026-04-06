@@ -2,8 +2,8 @@ export const VerifyPendingPage = ({ appId = 'sso', redirect = '/' }: { appId?: s
 	const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
 
 	return (
-		<div className="text-center">
-			<h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-4">Check your inbox</h2>
+		<div className="px-4 text-center sm:px-12">
+			<h2 className="mb-4 text-xl font-bold tracking-tight text-zinc-900">Check your inbox</h2>
 			<p className="mb-2 text-sm text-zinc-600">
 				We've sent a verification link to your email address. Please click the link to activate your account.
 			</p>

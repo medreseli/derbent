@@ -26,7 +26,7 @@ export const TwoFactorSetupPage = ({
 
 	return (
 		<>
-			<h2 className="text-xl font-bold text-center tracking-tight text-zinc-900 mb-2">Set up Two-Factor Authentication</h2>
+			<h2 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900">Set up Two-Factor Authentication</h2>
 			<p className="mb-8 text-center text-sm text-zinc-600">Scan the QR code with your authenticator app.</p>
 
 			{error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-600/20">{error}</div>}
@@ -36,7 +36,7 @@ export const TwoFactorSetupPage = ({
 
 				<div className="w-full text-center">
 					<p className="mb-2 text-xs text-zinc-500">Or manually enter the secret:</p>
-					<div className="rounded-md bg-zinc-100 py-2 px-3 font-mono text-sm font-bold tracking-widest text-zinc-900">
+					<div className="rounded-md bg-zinc-100 px-3 py-2 font-mono text-sm font-bold tracking-widest text-zinc-900">
 						{formattedSecret}
 					</div>
 				</div>
@@ -44,7 +44,7 @@ export const TwoFactorSetupPage = ({
 
 			<form method="post" action="/2fa/setup" className="space-y-6">
 				<div>
-					<label className="block text-sm font-medium leading-6 text-zinc-900">Enter the 6-digit code from your app</label>
+					<label className="block text-sm leading-6 font-medium text-zinc-900">Enter the 6-digit code from your app</label>
 					<input
 						type="text"
 						name="code"
@@ -84,8 +84,8 @@ export const TwoFactorManagePage = ({ csrfToken, isEnabled, error }: { csrfToken
 	}
 
 	return (
-		<>
-			<h2 className="text-xl font-bold text-center tracking-tight text-zinc-900 mb-2">Manage Two-Factor Authentication</h2>
+		<div className="px-4 sm:px-12">
+			<h2 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900">Manage Two-Factor Authentication</h2>
 			<p className="mb-8 text-center text-sm text-zinc-600">
 				Two-Factor Authentication is currently <strong className="text-green-600">Enabled</strong>.
 			</p>
@@ -96,7 +96,7 @@ export const TwoFactorManagePage = ({ csrfToken, isEnabled, error }: { csrfToken
 				<p className="text-sm text-zinc-600">To disable 2FA, please enter a code from your authenticator app.</p>
 
 				<div>
-					<label className="block text-sm font-medium leading-6 text-zinc-900">Authenticator Code</label>
+					<label className="block text-sm leading-6 font-medium text-zinc-900">Authenticator Code</label>
 					<input
 						type="text"
 						name="code"
@@ -106,7 +106,7 @@ export const TwoFactorManagePage = ({ csrfToken, isEnabled, error }: { csrfToken
 						pattern="[0-9]{6}"
 						maxLength={6}
 						autoFocus
-						className="form-input mt-2 text-center tracking-widest"
+						className="form-input mt-2 px-3 text-center tracking-widest"
 					/>
 				</div>
 
@@ -121,6 +121,6 @@ export const TwoFactorManagePage = ({ csrfToken, isEnabled, error }: { csrfToken
 					Back to Dashboard
 				</a>
 			</p>
-		</>
+		</div>
 	);
 };

@@ -1,6 +1,6 @@
 export const ResetPasswordPage = ({ token, csrfToken, error }: { token: string; csrfToken: string; error?: string }) => {
 	return (
-		<>
+		<div className="px-4 sm:px-12">
 			<p className="mb-8 text-center text-sm text-zinc-600">Please enter your new password below.</p>
 
 			{error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-600/20">{error}</div>}
@@ -9,13 +9,13 @@ export const ResetPasswordPage = ({ token, csrfToken, error }: { token: string; 
 				<input type="hidden" name="token" value={token} />
 
 				<div>
-					<label className="block text-sm font-medium leading-6 text-zinc-900">New Password</label>
-					<input type="password" name="password" required minLength={8} autoFocus className="form-input mt-2" />
+					<label className="block text-sm leading-6 font-medium text-zinc-900">New Password</label>
+					<input type="password" name="password" required minLength={8} autoFocus className="form-input mt-2 px-3" />
 				</div>
 
 				<div>
-					<label className="block text-sm font-medium leading-6 text-zinc-900">Confirm New Password</label>
-					<input type="password" name="confirmPassword" required className="form-input mt-2" />
+					<label className="block text-sm leading-6 font-medium text-zinc-900">Confirm New Password</label>
+					<input type="password" name="confirmPassword" required className="form-input mt-2 px-3" />
 				</div>
 
 				<input type="hidden" name="csrf_token" value={csrfToken} />
@@ -23,6 +23,6 @@ export const ResetPasswordPage = ({ token, csrfToken, error }: { token: string; 
 					Reset Password
 				</button>
 			</form>
-		</>
+		</div>
 	);
 };

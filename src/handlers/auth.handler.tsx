@@ -1,8 +1,7 @@
 import { Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
-import { ContentfulStatusCode } from 'hono/utils/http-status';
 import * as v from 'valibot';
-import { REGISTERED_APPS } from '../config/apps';
+import { AppId, REGISTERED_APPS } from '../config/apps';
 import { AppError } from '../types/errors';
 import { HonoEnv } from '../types/hono-env';
 import { Session } from '../types/session';
@@ -29,12 +28,20 @@ import { TwoFactorManagePage, TwoFactorSetupPage } from '../ui/pages/two-factor'
 import { TwoFactorVerifyPage } from '../ui/pages/two-factor-verify';
 import { VerifyPendingPage } from '../ui/pages/verify-pending';
 
-function getParams(c: Context) {
+function getParams(c: Context): { redirect: string; appId: AppId } {
 	const parsed = v.safeParse(QuerySchema, {
 		app_id: c.req.query('app_id'),
 		redirect: c.req.query('redirect'),
 	});
-	return parsed.success ? { redirect: parsed.output.redirect, appId: parsed.output.app_id } : { redirect: '/', appId: 'sso' };
+
+	if (parsed.success) {
+		return {
+			appId: parsed.output.app_id as AppId,
+			redirect: parsed.output.redirect ?? '/',
+		};
+	}
+
+	return { redirect: '/', appId: 'sso' };
 }
 
 function getClientInfo(c: Context) {
@@ -112,15 +119,7 @@ export class AuthHandler {
 		if (successParam === '2fa_enabled') successMsg = 'Two-Factor Authentication was successfully enabled.';
 		if (successParam === '2fa_disabled') successMsg = 'Two-Factor Authentication was successfully disabled.';
 
-		return c.render(
-			<LandingPage
-				appName={c.env.APP_NAME}
-				csrfToken={csrfToken}
-				apps={appStatuses}
-				hasAnySession={hasAnySession}
-				successMsg={successMsg}
-			/>,
-		);
+		return c.render(<LandingPage csrfToken={csrfToken} apps={appStatuses} hasAnySession={hasAnySession} successMsg={successMsg} />);
 	}
 
 	static async renderLogin(c: Context<HonoEnv>) {
@@ -133,16 +132,7 @@ export class AuthHandler {
 		if (errorParam === 'github_failed') errorMsg = 'GitHub authentication failed. Please try again.';
 		if (errorParam === 'github_not_configured') errorMsg = 'GitHub login is not enabled on this instance.';
 
-		return c.render(
-			<LoginPage
-				appName={c.env.APP_NAME}
-				appId={appId}
-				redirect={redirect}
-				csrfToken={csrfToken}
-				error={errorMsg}
-				githubClientId={githubClientId}
-			/>,
-		);
+		return c.render(<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} error={errorMsg} githubClientId={githubClientId} />);
 	}
 
 	static async renderRegister(c: Context<HonoEnv>) {
@@ -169,7 +159,6 @@ export class AuthHandler {
 			logger.warn(`Login validation failed for app: ${appId}`, result.issues);
 			return c.render(
 				<LoginPage
-					appName={c.env.APP_NAME}
 					appId={appId}
 					redirect={redirect}
 					csrfToken={c.get('csrfToken')}
@@ -208,14 +197,7 @@ export class AuthHandler {
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 
 			return c.render(
-				<LoginPage
-					appName={c.env.APP_NAME}
-					appId={appId}
-					redirect={redirect}
-					csrfToken={c.get('csrfToken')}
-					error={msg}
-					githubClientId={c.env.GITHUB_CLIENT_ID}
-				/>,
+				<LoginPage appId={appId} redirect={redirect} csrfToken={c.get('csrfToken')} error={msg} githubClientId={c.env.GITHUB_CLIENT_ID} />,
 			);
 		}
 	}
@@ -251,13 +233,7 @@ export class AuthHandler {
 
 		if (!token) {
 			return c.render(
-				<LoginPage
-					appName={c.env.APP_NAME}
-					appId={appId}
-					redirect={redirect}
-					csrfToken={c.get('csrfToken')}
-					error="No verification token provided."
-				/>,
+				<LoginPage appId={appId} redirect={redirect} csrfToken={c.get('csrfToken')} error="No verification token provided." />,
 			);
 		}
 
@@ -266,17 +242,11 @@ export class AuthHandler {
 		try {
 			await authService.verifyEmailToken(token, ip, userAgent);
 			return c.render(
-				<LoginPage
-					appName={c.env.APP_NAME}
-					appId={appId}
-					redirect={redirect}
-					csrfToken={csrfToken}
-					success="Email verified successfully! You can now log in."
-				/>,
+				<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} success="Email verified successfully! You can now log in." />,
 			);
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
-			return c.render(<LoginPage appName={c.env.APP_NAME} appId={appId} redirect={redirect} csrfToken={csrfToken} error={msg} />);
+			return c.render(<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} error={msg} />);
 		}
 	}
 
@@ -405,13 +375,7 @@ export class AuthHandler {
 		try {
 			const app = await c.get('authService').resetPassword(result.output.token, result.output.password, ip, userAgent);
 			return c.render(
-				<LoginPage
-					appName={c.env.APP_NAME}
-					appId={app}
-					redirect="/"
-					csrfToken={csrfToken}
-					success="Password reset successful! You can now log in."
-				/>,
+				<LoginPage appId={app} redirect="/" csrfToken={csrfToken} success="Password reset successful! You can now log in." />,
 			);
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
@@ -450,13 +414,7 @@ export class AuthHandler {
 			}
 
 			return c.render(
-				<LoginPage
-					appName={c.env.APP_NAME}
-					appId="sso"
-					redirect="/"
-					csrfToken={c.get('csrfToken')}
-					success="Password changed successfully. Please log in again."
-				/>,
+				<LoginPage appId="sso" redirect="/" csrfToken={c.get('csrfToken')} success="Password changed successfully. Please log in again." />,
 			);
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'An unexpected error occurred.';
@@ -497,15 +455,7 @@ export class AuthHandler {
 		const { ip, userAgent } = getClientInfo(c);
 
 		if (!token) {
-			return c.render(
-				<LoginPage
-					appName={c.env.APP_NAME}
-					appId={appId}
-					redirect={redirect}
-					csrfToken={csrfToken}
-					error="No magic link token provided."
-				/>,
-			);
+			return c.render(<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} error="No magic link token provided." />);
 		}
 
 		try {
@@ -524,7 +474,7 @@ export class AuthHandler {
 			return c.redirect(redirect);
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
-			return c.render(<LoginPage appName={c.env.APP_NAME} appId={appId} redirect={redirect} csrfToken={csrfToken} error={msg} />);
+			return c.render(<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} error={msg} />);
 		}
 	}
 

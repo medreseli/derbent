@@ -16,13 +16,11 @@ export interface AppStatus {
 }
 
 export const LandingPage = ({
-	appName,
 	csrfToken,
 	apps,
 	hasAnySession,
 	successMsg,
 }: {
-	appName: string;
 	csrfToken: string;
 	apps: AppStatus[];
 	hasAnySession: boolean;
