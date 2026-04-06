@@ -16,7 +16,7 @@ export interface AppConfig {
 export const REGISTERED_APPS: Record<AppId, AppConfig> = {
 	sso: {
 		id: 'sso',
-		name: 'Derbent SSO',
+		name: 'Single sign-on',
 		description: 'Your central, global account for all integrated services.',
 		prodUrl: 'https://derbent.zerdalu.com',
 		devUrl: 'http://localhost:8787',

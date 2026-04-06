@@ -14,19 +14,33 @@ export const renderer = jsxRenderer(({ children }) => {
 				<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 				<link rel="stylesheet" href={cssPath} />
 			</head>
-			<body className="h-full font-sans antialiased text-zinc-900">
-				<div className="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
-					<div className="sm:mx-auto sm:w-full sm:max-w-md">
-						<div className="flex flex-col items-center justify-center space-y-4">
+
+			<body className="h-full font-sans text-zinc-900 antialiased select-none">
+				<div className="flex min-h-full flex-col items-center justify-center py-12 sm:px-6 lg:px-8">
+					<div className="relative aspect-82/48 h-32">
+						<svg className="absolute inset-0 h-full w-full text-gray-700" viewBox="0 0 82 48" preserveAspectRatio="none">
+							<defs>
+								<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+									<feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.3" />
+								</filter>
+							</defs>
+
+							<path
+								fill="currentColor"
+								d="M39.775 0C34.515 0.17 29.322 1.77 25.063 5.08C15.329 12.64 18.637 23.35 14.06 33.77C9.482 44.19 0 48 0 48h82s-9.482-3.81-14.06-14.23C63.363 23.35 66.671 12.64 56.937 5.08C52.678 1.77 47.485 0.17 42.225 0c-.408-.013-.816.005-1.225.01-.409-.005-.817-.023-1.225-.01z"
+							/>
+						</svg>
+
+						<div className="relative flex h-full flex-col items-center justify-center gap-1.5 text-white">
 							<a href="/">
 								<img src="/logo.svg" alt="Logo" className="h-12 w-12" />
 							</a>
-							<h1 className="text-center text-2xl font-bold tracking-tight">Derbent</h1>
+							<h1 className="text-center text-xl font-bold tracking-tight text-white">DERBENT</h1>
 						</div>
 					</div>
 
-					<div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-						<div className="bg-white px-6 py-8 shadow-sm ring-1 ring-zinc-200 sm:rounded-xl sm:px-10">{children}</div>
+					<div className="sm:mx-auto sm:w-full sm:max-w-md">
+						<div className="bg-white px-6 py-8 shadow-xs ring-1 ring-gray-700 sm:rounded-xl sm:px-10">{children}</div>
 					</div>
 				</div>
 			</body>
