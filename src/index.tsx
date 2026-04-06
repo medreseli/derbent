@@ -11,7 +11,7 @@ import { AuthService } from './services/auth.service';
 import { EmailService } from './services/email.service';
 import { HonoEnv } from './types/hono-env';
 import { Logger } from './utils/logger';
-import { renderer } from './views/components/layout';
+import { renderer } from './ui/layout';
 import { UserTokenVersionRepository } from './repositories/user-token-version.repository';
 import { AuditLogRepository } from './repositories/audit-log.repository';
 import { LoginAttemptRepository } from './repositories/login-attempt.repository';

@@ -1,0 +1,26 @@
+import { AppId } from '../../config/apps';
+
+import ssoSvg from '../../assets/icons/sso.svg?raw';
+import hodanSvg from '../../assets/icons/hodan.svg?raw';
+import namedarSvg from '../../assets/icons/namedar.svg?raw';
+
+const ICON_MAP: Record<string, string> = {
+	sso: ssoSvg,
+	hodan: hodanSvg,
+	namedar: namedarSvg,
+};
+
+interface AppIconProps {
+	appId: AppId | string;
+	className?: string;
+}
+
+export const AppIcon = ({ appId, className = '' }: AppIconProps) => {
+	const rawSvg = ICON_MAP[appId];
+
+	if (!rawSvg) return null;
+
+	const processedSvg = rawSvg.replace('<svg', `<svg class="${className}"`);
+
+	return <span className="contents" dangerouslySetInnerHTML={{ __html: processedSvg }} />;
+};

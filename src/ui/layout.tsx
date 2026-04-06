@@ -1,4 +1,5 @@
 import { jsxRenderer } from 'hono/jsx-renderer';
+import { AppIcon } from './components/app-icon';
 
 export const renderer = jsxRenderer(({ children }) => {
 	// In development, Vite processes /src/app.css dynamically via the plugin.
@@ -31,16 +32,16 @@ export const renderer = jsxRenderer(({ children }) => {
 							/>
 						</svg>
 
-						<div className="relative flex h-full flex-col items-center justify-center gap-1.5 text-white">
+						<div className="relative flex h-full flex-col items-center justify-center gap-1.5 text-zinc-200">
 							<a href="/">
-								<img src="/logo.svg" alt="Logo" className="h-12 w-12" />
+								<AppIcon appId="sso" className="size-12" />
 							</a>
-							<h1 className="text-center text-xl font-bold tracking-tight text-white">DERBENT</h1>
+							<h1 className="text-center text-xl font-bold tracking-tight">DERBENT</h1>
 						</div>
 					</div>
 
 					<div className="sm:mx-auto sm:w-full sm:max-w-md">
-						<div className="bg-white px-6 py-8 shadow-xs ring-1 ring-gray-700 sm:rounded-xl sm:px-10">{children}</div>
+						<div className="bg-white py-8 shadow-xs ring-1 ring-gray-700 sm:rounded-lg">{children}</div>
 					</div>
 				</div>
 			</body>

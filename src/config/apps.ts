@@ -9,6 +9,7 @@ export interface AppConfig {
 	id: AppId;
 	name: string;
 	description: string;
+	icon: string; // Path to the SVG in the public folder
 	prodUrl: string;
 	devUrl: string;
 }
@@ -18,6 +19,7 @@ export const REGISTERED_APPS: Record<AppId, AppConfig> = {
 		id: 'sso',
 		name: 'Single sign-on',
 		description: 'Your central, global account for all integrated services.',
+		icon: '/logo.svg',
 		prodUrl: 'https://derbent.zerdalu.com',
 		devUrl: 'http://localhost:8787',
 	},
@@ -25,14 +27,16 @@ export const REGISTERED_APPS: Record<AppId, AppConfig> = {
 		id: 'hodan',
 		name: 'Hodan',
 		description: 'Your storyboarding studio',
+		icon: '/hodan.svg',
 		prodUrl: 'https://namedar.zerdalu.com',
-		devUrl: 'http://localhost:5173', // Adjust this to Nâmedâr's actual local port
+		devUrl: 'http://localhost:5173',
 	},
 	namedar: {
 		id: 'namedar',
 		name: 'Nâmedâr',
 		description: 'OMR solution for examinations',
+		icon: '/namedar.svg',
 		prodUrl: 'https://namedar.zerdalu.com',
-		devUrl: 'http://localhost:5173', // Adjust this to Nâmedâr's actual local port
+		devUrl: 'http://localhost:5173',
 	},
 };

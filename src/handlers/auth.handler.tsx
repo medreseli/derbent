@@ -18,16 +18,16 @@ import {
 	ResetPasswordSchema,
 } from '../utils/validation';
 
-import { ChangePasswordPage } from '../views/pages/change-password';
-import { ForgotPasswordPage } from '../views/pages/forgot-password';
-import { AppStatus, LandingPage } from '../views/pages/landing';
-import { LoginPage } from '../views/pages/login';
-import { MagicLinkPage } from '../views/pages/magic-link';
-import { RegisterPage } from '../views/pages/register';
-import { ResetPasswordPage } from '../views/pages/reset-password';
-import { TwoFactorManagePage, TwoFactorSetupPage } from '../views/pages/two-factor';
-import { TwoFactorVerifyPage } from '../views/pages/two-factor-verify';
-import { VerifyPendingPage } from '../views/pages/verify-pending';
+import { ChangePasswordPage } from '../ui/pages/change-password';
+import { ForgotPasswordPage } from '../ui/pages/forgot-password';
+import { AppStatus, LandingPage } from '../ui/pages/landing';
+import { LoginPage } from '../ui/pages/login';
+import { MagicLinkPage } from '../ui/pages/magic-link';
+import { RegisterPage } from '../ui/pages/register';
+import { ResetPasswordPage } from '../ui/pages/reset-password';
+import { TwoFactorManagePage, TwoFactorSetupPage } from '../ui/pages/two-factor';
+import { TwoFactorVerifyPage } from '../ui/pages/two-factor-verify';
+import { VerifyPendingPage } from '../ui/pages/verify-pending';
 
 function getParams(c: Context) {
 	const parsed = v.safeParse(QuerySchema, {
@@ -99,6 +99,7 @@ export class AuthHandler {
 					id: appConfig.id,
 					name: appConfig.name,
 					description: appConfig.description,
+					icon: appConfig.icon,
 					url: appUrl,
 				},
 				session,
