@@ -64,6 +64,12 @@
 			},
 			"GITHUB_CLIENT_SECRET": {
 				"description": "(Optional) GitHub OAuth Client Secret. Leave empty to disable GitHub login."
+			},
+			"GOOGLE_CLIENT_ID": {
+				"description": "(Optional) Google OAuth Client ID. Leave empty to disable Google login."
+			},
+			"GOOGLE_CLIENT_SECRET": {
+				"description": "(Optional) Google OAuth Client Secret. Leave empty to disable Google login."
 			}
 		}
 	}

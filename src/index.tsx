@@ -98,6 +98,8 @@ app.get('/verify-magic-link', csrfOnGet(), AuthHandler.handleVerifyMagicLink);
 // OAuth Routes
 app.get('/auth/github', AuthHandler.handleGitHubLogin);
 app.get('/auth/github/callback', AuthHandler.handleGitHubCallback);
+app.get('/auth/google', AuthHandler.handleGoogleLogin);
+app.get('/auth/google/callback', AuthHandler.handleGoogleCallback);
 
 // Admin Dashboard Routes
 const adminRoutes = new Hono<HonoEnv>();

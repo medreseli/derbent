@@ -17,7 +17,7 @@ export const renderer = jsxRenderer(({ children }) => {
 			</head>
 
 			<body className="h-full font-sans text-zinc-900 antialiased select-none">
-				<div className="flex min-h-full flex-col items-center justify-center py-12 sm:px-6 lg:px-8">
+				<div className="flex min-h-full flex-col items-center justify-start py-12">
 					<div className="relative aspect-82/48 h-32">
 						<svg className="absolute inset-0 h-full w-full text-gray-700" viewBox="0 0 82 48" preserveAspectRatio="none">
 							<defs>
@@ -40,7 +40,7 @@ export const renderer = jsxRenderer(({ children }) => {
 						</div>
 					</div>
 
-					<div className="sm:mx-auto sm:w-full sm:max-w-md">
+					<div className="w-full sm:mx-auto sm:max-w-md">
 						<div className="bg-white py-8 shadow-xs ring-1 ring-gray-700 sm:rounded-lg">{children}</div>
 					</div>
 				</div>

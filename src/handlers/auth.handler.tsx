@@ -126,13 +126,25 @@ export class AuthHandler {
 		const csrfToken = c.get('csrfToken');
 		const { appId, redirect } = getParams(c);
 		const githubClientId = c.env.GITHUB_CLIENT_ID;
+		const googleClientId = c.env.GOOGLE_CLIENT_ID;
 		const errorParam = c.req.query('error');
 
 		let errorMsg = undefined;
 		if (errorParam === 'github_failed') errorMsg = 'GitHub authentication failed. Please try again.';
 		if (errorParam === 'github_not_configured') errorMsg = 'GitHub login is not enabled on this instance.';
+		if (errorParam === 'google_failed') errorMsg = 'Google authentication failed. Please try again.';
+		if (errorParam === 'google_not_configured') errorMsg = 'Google login is not enabled on this instance.';
 
-		return c.render(<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} error={errorMsg} githubClientId={githubClientId} />);
+		return c.render(
+			<LoginPage
+				appId={appId}
+				redirect={redirect}
+				csrfToken={csrfToken}
+				error={errorMsg}
+				githubClientId={githubClientId}
+				googleClientId={googleClientId}
+			/>,
+		);
 	}
 
 	static async renderRegister(c: Context<HonoEnv>) {
@@ -164,6 +176,7 @@ export class AuthHandler {
 					csrfToken={c.get('csrfToken')}
 					error={result.issues[0].message}
 					githubClientId={c.env.GITHUB_CLIENT_ID}
+					googleClientId={c.env.GOOGLE_CLIENT_ID}
 				/>,
 			);
 		}
@@ -197,7 +210,14 @@ export class AuthHandler {
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 
 			return c.render(
-				<LoginPage appId={appId} redirect={redirect} csrfToken={c.get('csrfToken')} error={msg} githubClientId={c.env.GITHUB_CLIENT_ID} />,
+				<LoginPage
+					appId={appId}
+					redirect={redirect}
+					csrfToken={c.get('csrfToken')}
+					error={msg}
+					githubClientId={c.env.GITHUB_CLIENT_ID}
+					googleClientId={c.env.GOOGLE_CLIENT_ID}
+				/>,
 			);
 		}
 	}
@@ -566,6 +586,104 @@ export class AuthHandler {
 			return c.redirect(redirect);
 		} catch (err) {
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_failed' }).toString();
+			return c.redirect(`/login?${qs}`);
+		}
+	}
+
+	static async handleGoogleLogin(c: Context<HonoEnv>) {
+		const { appId, redirect } = getParams(c);
+
+		if (!c.env.GOOGLE_CLIENT_ID) {
+			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'google_not_configured' }).toString();
+			return c.redirect(`/login?${qs}`);
+		}
+
+		const nonce = crypto.randomUUID();
+		const cookieOpts = getCookieOptions(c);
+		cookieOpts.maxAge = 600;
+		setCookie(c, 'google_oauth_state', nonce, cookieOpts);
+
+		const state = btoa(JSON.stringify({ appId, redirect, nonce }));
+		const redirectUri = `${c.env.BASE_URL}/auth/google/callback`;
+		const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${c.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email profile&state=${state}`;
+
+		return c.redirect(googleUrl);
+	}
+
+	static async handleGoogleCallback(c: Context<HonoEnv>) {
+		const code = c.req.query('code');
+		const state = c.req.query('state');
+		const { ip, userAgent } = getClientInfo(c);
+		const authService = c.get('authService');
+
+		let appId = 'sso';
+		let redirect = '/';
+		let nonceFromState = '';
+
+		if (state) {
+			try {
+				const parsed = JSON.parse(atob(state));
+				appId = parsed.appId || 'sso';
+				redirect = parsed.redirect || '/';
+				nonceFromState = parsed.nonce || '';
+			} catch (e) {}
+		}
+
+		if (!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET) {
+			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'google_not_configured' }).toString();
+			return c.redirect(`/login?${qs}`);
+		}
+
+		if (!code || !state) return c.redirect(`/login?app_id=${appId}&redirect=${encodeURIComponent(redirect)}`);
+
+		const storedNonce = getCookie(c, 'google_oauth_state');
+		const cookieOpts = getCookieOptions(c);
+		deleteCookie(c, 'google_oauth_state', cookieOpts);
+
+		if (!storedNonce || !nonceFromState || storedNonce !== nonceFromState) {
+			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'google_failed' }).toString();
+			return c.redirect(`/login?${qs}`);
+		}
+
+		try {
+			const redirectUri = `${c.env.BASE_URL}/auth/google/callback`;
+			const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				body: new URLSearchParams({
+					client_id: c.env.GOOGLE_CLIENT_ID,
+					client_secret: c.env.GOOGLE_CLIENT_SECRET,
+					code,
+					grant_type: 'authorization_code',
+					redirect_uri: redirectUri,
+				}).toString(),
+			});
+
+			const tokenData: any = await tokenRes.json();
+			if (!tokenData.access_token) throw new Error('Google Auth Failed');
+
+			const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+				headers: { Authorization: `Bearer ${tokenData.access_token}` },
+			});
+			const userData: any = await userRes.json();
+			const primaryEmail = userData.email;
+
+			if (!primaryEmail || !userData.verified_email) throw new Error('No verified email found on Google');
+
+			const loginResult = await authService.loginWithOAuth(primaryEmail, 'google', appId, ip, userAgent);
+
+			if (loginResult.requires2FA) {
+				const qs = new URLSearchParams({ token: loginResult.twoFactorToken!, app_id: appId, redirect }).toString();
+				return c.redirect(`/2fa/verify?${qs}`);
+			}
+
+			const loginCookieOpts = getCookieOptions(c);
+			loginCookieOpts.maxAge = 86400;
+			setCookie(c, `session_${loginResult.app}`, loginResult.sessionId!, loginCookieOpts);
+
+			return c.redirect(redirect);
+		} catch (err) {
+			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'google_failed' }).toString();
 			return c.redirect(`/login?${qs}`);
 		}
 	}
