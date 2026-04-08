@@ -1,14 +1,14 @@
-import derbentSvg from '../../assets/icons/derbent.svg?raw';
-import googleSvg from '../../assets/icons/google.svg?raw';
-import githubSvg from '../../assets/icons/github.svg?raw';
-import logInSvg from '../../assets/icons/log-in.svg?raw';
-import logOutSvg from '../../assets/icons/log-out.svg?raw';
-import keySquareSvg from '../../assets/icons/key-square.svg?raw';
-import shieldCheckSvg from '../../assets/icons/shield-check.svg?raw';
-import globeSvg from '../../assets/icons/globe.svg?raw';
-import externalLinkSvg from '../../assets/icons/external-link.svg?raw';
-import powerSvg from '../../assets/icons/power.svg?raw';
-import ellipsisSvg from '../../assets/icons/ellipsis.svg?raw';
+import derbentSvg from '../../assets/icons/derbent.svg';
+import googleSvg from '../../assets/icons/google.svg';
+import githubSvg from '../../assets/icons/github.svg';
+import logInSvg from '../../assets/icons/log-in.svg';
+import logOutSvg from '../../assets/icons/log-out.svg';
+import keySquareSvg from '../../assets/icons/key-square.svg';
+import shieldCheckSvg from '../../assets/icons/shield-check.svg';
+import globeSvg from '../../assets/icons/globe.svg';
+import externalLinkSvg from '../../assets/icons/external-link.svg';
+import powerSvg from '../../assets/icons/power.svg';
+import ellipsisSvg from '../../assets/icons/ellipsis.svg';
 
 export interface IconProps {
 	className?: string;

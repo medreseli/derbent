@@ -4,16 +4,16 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"db:migrations:apply": "wrangler d1 migrations apply DB --remote",
-		"deploy": "npm run db:migrations:apply && wrangler deploy",
+		"build:css": "tailwindcss -i ./src/style.css -o ./public/main.css --minify",
+		"build": "npm run build:css && vite build",
+		"deploy": "npm run build && wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
 		"reset": "rm -rf .wrangler/state/v3 && wrangler d1 execute DB --file './db/schema.sql' --local",
 		"cf-typegen": "wrangler types",
-		"build:css": "tailwindcss -i ./src/app.css -o ./public/main.css --minify",
 		"çat": "vite dev",
-		"yay": "npm run build:css && wrangler deploy",
+		"yay": "npm run deploy",
 		"nevile": "wrangler types"
 	},
 	"devDependencies": {
@@ -31,10 +31,10 @@
 		"typescript": "^5.5.2",
 		"vite": "^8.0.5",
 		"vitest": "^4.1.2",
-		"wrangler": "^4.80.0"
+		"wrangler": "^4.81.0"
 	},
 	"dependencies": {
-		"hono": "^4.12.10",
+		"hono": "^4.12.12",
 		"qrcode-svg": "^1.1.0",
 		"valibot": "^1.3.1"
 	},

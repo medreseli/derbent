@@ -1,11 +1,12 @@
+import { AppId } from '../../config/apps';
 import { Session } from '../../types/session';
 import { ActionMenu } from '../components/action-menu';
 import { AppIcon } from '../components/app-icon';
 import { Button } from '../components/button';
-import { EllipsisIcon, ExternalLinkIcon, KeySquareIcon, LogInIcon, LogOutIcon, PowerIcon, ShieldCheckIcon } from '../helpers/icons';
+import { ExternalLinkIcon, LogInIcon } from '../helpers/icons';
 
 export interface AppViewConfig {
-	id: string;
+	id: AppId;
 	name: string;
 	description: string;
 	icon: string;
@@ -24,7 +25,17 @@ const SuccessMessage = ({ message }: { message: string }) => (
 	<div className="mb-6 bg-green-50 p-3 text-sm text-green-800 ring-1 ring-green-600/20">{message}</div>
 );
 
-const AppListRow = ({ app, csrfToken, isSso }: { app: AppStatus; csrfToken: string; isSso?: boolean }) => {
+const AppListRow = ({
+	app,
+	csrfToken,
+	isLoggedInAsSSO,
+	isSso,
+}: {
+	app: AppStatus;
+	csrfToken: string;
+	isLoggedInAsSSO: boolean;
+	isSso?: boolean;
+}) => {
 	const isLoggedIn = app.session !== null;
 
 	return (
@@ -60,9 +71,24 @@ const AppListRow = ({ app, csrfToken, isSso }: { app: AppStatus; csrfToken: stri
 			</div>
 
 			<div className="flex items-center gap-2">
-				{isLoggedIn ? (
-					<ActionMenu app={app} csrfToken={csrfToken} />
-				) : (
+				{isSso && isLoggedInAsSSO && <ActionMenu app={app} csrfToken={csrfToken} />}
+
+				{!isSso && isLoggedIn && (
+					<a
+						href={app.config.url}
+						target="_blank"
+						className="group/tooltip relative flex h-10 w-10 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+					>
+						<ExternalLinkIcon className="size-5" />
+						{/* Tooltip */}
+						<span className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 scale-95 rounded bg-zinc-900 px-2 py-1 text-sm font-medium whitespace-nowrap text-white opacity-0 transition-all group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100">
+							{app.config.name}
+							<span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></span>
+						</span>
+					</a>
+				)}
+
+				{!isLoggedIn && (
 					<Button
 						href={`/login?app_id=${app.config.id}&redirect=/`}
 						variant="primary"
@@ -91,6 +117,7 @@ export const LandingPage = ({
 }) => {
 	const ssoApp = apps.find((a) => a.config.id === 'sso');
 	const regularApps = apps.filter((a) => a.config.id !== 'sso');
+	const isLoggedInAsSSO = !!ssoApp?.session;
 
 	return (
 		<div className="">
@@ -100,11 +127,11 @@ export const LandingPage = ({
 
 			<div className="divide-y divide-zinc-200">
 				{/* Render SSO app at top if it exists */}
-				{ssoApp && <AppListRow app={ssoApp} csrfToken={csrfToken} isSso={true} />}
+				{ssoApp && <AppListRow app={ssoApp} csrfToken={csrfToken} isLoggedInAsSSO={isLoggedInAsSSO} isSso={true} />}
 
 				{/* Render regular apps */}
 				{regularApps.map((app) => (
-					<AppListRow key={app.config.id} app={app} csrfToken={csrfToken} />
+					<AppListRow key={app.config.id} app={app} csrfToken={csrfToken} isLoggedInAsSSO={isLoggedInAsSSO} />
 				))}
 			</div>
 

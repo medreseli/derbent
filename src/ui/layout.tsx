@@ -1,10 +1,12 @@
 import { jsxRenderer } from 'hono/jsx-renderer';
 import { DerbentIcon } from './helpers/icons';
 
-export const renderer = jsxRenderer(({ children }) => {
+export const renderer = jsxRenderer(({ children }, c) => {
+	const isProd = c.env.APP_ENV === 'production';
+
 	// In development, Vite processes /src/app.css dynamically via the plugin.
 	// In production, we load the statically built /main.css from the public/ folder.
-	const cssPath = import.meta.env.PROD ? '/main.css' : '/src/style.css';
+	const cssPath = isProd ? '/main.css' : '/src/style.css';
 
 	return (
 		<html lang="en" className="h-full bg-zinc-50">

@@ -14,6 +14,13 @@
 	"assets": {
 		"directory": "./public/",
 	},
+	"rules": [
+		{
+			"type": "Text",
+			"globs": ["**/*.svg"],
+			"fallthrough": true,
+		},
+	],
 	"workers_dev": false,
 	"preview_urls": false,
 	"routes": [

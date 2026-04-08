@@ -1,6 +1,13 @@
+import { EllipsisIcon, ExternalLinkIcon, KeySquareIcon, LogOutIcon, ShieldCheckIcon } from '../helpers/icons';
 import { AppStatus } from '../pages/landing';
-import { EllipsisIcon, KeySquareIcon, ShieldCheckIcon, ExternalLinkIcon, LogOutIcon } from '../helpers/icons';
-import { Button } from './button';
+import { Child } from 'hono/jsx';
+
+export interface MenuAction {
+	label: string;
+	href: string;
+	icon: Child;
+	target?: string;
+}
 
 interface ActionMenuProps {
 	app: AppStatus;
@@ -11,27 +18,27 @@ export const ActionMenu = ({ app, csrfToken }: ActionMenuProps) => {
 	const appId = app.config.id;
 	const appUrl = app.config.url;
 
-	const actions = [
+	const actions: MenuAction[] = [
 		{
 			label: 'Change Password',
 			href: `/change-password?app_id=${appId}`,
 			icon: <KeySquareIcon className="size-5" />,
-			variant: 'secondary' as const,
 		},
 		{
-			label: 'Security Settings',
+			label: '2FA Settings',
 			href: `/2fa/setup?app_id=${appId}`,
 			icon: <ShieldCheckIcon className="size-5" />,
-			variant: 'secondary' as const,
 		},
-		{
+	];
+
+	if (appId !== 'sso') {
+		actions.push({
 			label: 'Open App',
 			href: appUrl,
 			icon: <ExternalLinkIcon className="size-5" />,
-			variant: 'secondary' as const,
 			target: '_blank',
-		},
-	];
+		});
+	}
 
 	return (
 		<details className="group relative">
