@@ -1,8 +1,8 @@
 import { AppId } from '../../config/apps';
 
-import ssoSvg from '../../assets/icons/sso.svg?raw';
-import hodanSvg from '../../assets/icons/hodan.svg?raw';
-import namedarSvg from '../../assets/icons/namedar.svg?raw';
+import ssoSvg from '../../assets/app-icons/sso.svg?raw';
+import hodanSvg from '../../assets/app-icons/hodan.svg?raw';
+import namedarSvg from '../../assets/app-icons/namedar.svg?raw';
 
 const ICON_MAP: Record<string, string> = {
 	sso: ssoSvg,

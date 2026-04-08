@@ -19,7 +19,7 @@ export const REGISTERED_APPS: Record<AppId, AppConfig> = {
 		id: 'sso',
 		name: 'Single sign-on',
 		description: 'Your central, global account for all integrated services.',
-		icon: '/logo.svg',
+		icon: '/sso.svg',
 		prodUrl: 'https://derbent.zerdalu.com',
 		devUrl: 'http://localhost:8787',
 	},

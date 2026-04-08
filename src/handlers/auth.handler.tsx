@@ -56,7 +56,15 @@ export class AuthHandler {
 		const authService = c.get('authService');
 		const { ip, userAgent } = getClientInfo(c);
 
-		for (const appKey of Object.keys(REGISTERED_APPS)) {
+		const explicitAppId = c.req.query('app_id') as AppId | undefined;
+
+		// If an explicit app_id is passed, prioritize checking it first
+		let appsToCheck = Object.keys(REGISTERED_APPS);
+		if (explicitAppId && REGISTERED_APPS[explicitAppId]) {
+			appsToCheck = [explicitAppId, ...appsToCheck.filter((id) => id !== explicitAppId)];
+		}
+
+		for (const appKey of appsToCheck) {
 			const cookieName = `session_${appKey}`;
 			const cookieVal = getCookie(c, cookieName);
 

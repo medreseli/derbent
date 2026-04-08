@@ -1,5 +1,5 @@
 import { jsxRenderer } from 'hono/jsx-renderer';
-import { AppIcon } from './components/app-icon';
+import { DerbentIcon } from './helpers/icons';
 
 export const renderer = jsxRenderer(({ children }) => {
 	// In development, Vite processes /src/app.css dynamically via the plugin.
@@ -34,7 +34,7 @@ export const renderer = jsxRenderer(({ children }) => {
 
 						<div className="relative flex h-full flex-col items-center justify-center gap-1.5 text-zinc-200">
 							<a href="/">
-								<AppIcon appId="sso" className="size-12" />
+								<DerbentIcon className="size-12" />
 							</a>
 							<h1 className="text-center text-xl font-bold tracking-tight">DERBENT</h1>
 						</div>
