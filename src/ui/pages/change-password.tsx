@@ -1,3 +1,5 @@
+import { Button } from '../components/button';
+
 export const ChangePasswordPage = ({ csrfToken, error, success }: { csrfToken: string; error?: string; success?: string }) => {
 	return (
 		<div className="px-4 sm:px-12">
@@ -30,9 +32,9 @@ export const ChangePasswordPage = ({ csrfToken, error, success }: { csrfToken: s
 				</div>
 
 				<input type="hidden" name="csrf_token" value={csrfToken} />
-				<button type="submit" className="btn btn-primary w-full">
+				<Button type="submit" className="w-full">
 					Update Password
-				</button>
+				</Button>
 			</form>
 
 			<p className="mt-8 text-center text-sm text-zinc-600">

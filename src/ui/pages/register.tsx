@@ -1,4 +1,5 @@
 import { AppId, REGISTERED_APPS } from '../../config/apps';
+import { Button } from '../components/button';
 
 export const RegisterPage = ({
 	appId,
@@ -46,9 +47,9 @@ export const RegisterPage = ({
 				</div>
 
 				<input type="hidden" name="csrf_token" value={csrfToken} />
-				<button type="submit" className="btn btn-primary w-full">
+				<Button type="submit" className="w-full">
 					Register for {appName}
-				</button>
+				</Button>
 			</form>
 
 			<p className="mt-8 text-center text-sm text-zinc-600">

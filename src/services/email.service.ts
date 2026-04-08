@@ -4,6 +4,7 @@ export class EmailService {
 	private fromEmail: string;
 
 	constructor(
+		private isDev: boolean,
 		private appName: string,
 		private baseUrl: string,
 		private resendApiKey: string,
@@ -11,6 +12,14 @@ export class EmailService {
 		private queue?: Queue<EmailQueueMessage>,
 	) {
 		this.fromEmail = `noreply@${this.resendDomain}`;
+	}
+
+	private getTestSafeTo(to: string): string {
+		return this.isDev ? 'delivered@resend.dev' : to;
+	}
+
+	private getTestSafeSubject(subject: string, originalTo: string): string {
+		return this.isDev ? `[TEST for ${originalTo}] ${subject}` : subject;
 	}
 
 	async sendVerificationEmail(to: string, token: string, appId?: string, redirect?: string): Promise<void> {
@@ -68,8 +77,8 @@ export class EmailService {
 			},
 			body: JSON.stringify({
 				from: `Derbent <${this.fromEmail}>`,
-				to,
-				subject: 'Verify your email address',
+				to: this.getTestSafeTo(to),
+				subject: this.getTestSafeSubject('Verify your email address', to),
 				html: `
 					<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
 						<h2>Confirm your email</h2>
@@ -84,6 +93,9 @@ export class EmailService {
 		if (!response.ok) {
 			const errorData = await response.text();
 			throw new Error(`Email provider error: ${errorData}`);
+		} else {
+			const data: { id: string } = await response.json();
+			console.log('email id: ' + data.id);
 		}
 	}
 
@@ -98,8 +110,8 @@ export class EmailService {
 			},
 			body: JSON.stringify({
 				from: `Derbent <${this.fromEmail}>`,
-				to,
-				subject: 'Reset your password',
+				to: this.getTestSafeTo(to),
+				subject: this.getTestSafeSubject('Reset your password', to),
 				html: `
                 <h2>Password Reset Request</h2>
                 <p>Click the link below to set a new password. This link expires in 15 minutes.</p>
@@ -127,8 +139,8 @@ export class EmailService {
 			},
 			body: JSON.stringify({
 				from: `Derbent <${this.fromEmail}>`,
-				to,
-				subject: `Sign in to ${this.appName}`,
+				to: this.getTestSafeTo(to),
+				subject: this.getTestSafeSubject(`Sign in to ${this.appName}`, to),
 				html: `
 					<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
 						<h2>Sign in securely</h2>

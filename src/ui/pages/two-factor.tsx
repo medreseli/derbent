@@ -1,4 +1,5 @@
 import QRCode from 'qrcode-svg';
+import { Button } from '../components/button';
 
 export const TwoFactorSetupPage = ({
 	csrfToken,
@@ -25,7 +26,7 @@ export const TwoFactorSetupPage = ({
 	}).svg();
 
 	return (
-		<>
+		<div className="px-4 sm:px-12">
 			<h2 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900">Set up Two-Factor Authentication</h2>
 			<p className="mb-8 text-center text-sm text-zinc-600">Scan the QR code with your authenticator app.</p>
 
@@ -59,9 +60,9 @@ export const TwoFactorSetupPage = ({
 				</div>
 
 				<input type="hidden" name="csrf_token" value={csrfToken} />
-				<button type="submit" className="btn btn-primary w-full">
+				<Button type="submit" className="w-full">
 					Verify and Enable
-				</button>
+				</Button>
 			</form>
 
 			<p className="mt-8 text-center text-sm text-zinc-600">
@@ -69,7 +70,7 @@ export const TwoFactorSetupPage = ({
 					Cancel
 				</a>
 			</p>
-		</>
+		</div>
 	);
 };
 
@@ -111,9 +112,9 @@ export const TwoFactorManagePage = ({ csrfToken, isEnabled, error }: { csrfToken
 				</div>
 
 				<input type="hidden" name="csrf_token" value={csrfToken} />
-				<button type="submit" className="btn btn-danger w-full">
+				<Button type="submit" variant="danger" className="w-full">
 					Disable 2FA
-				</button>
+				</Button>
 			</form>
 
 			<p className="mt-8 text-center text-sm text-zinc-600">

@@ -1,3 +1,5 @@
+import { Button } from '../components/button';
+
 export const ResetPasswordPage = ({ token, csrfToken, error }: { token: string; csrfToken: string; error?: string }) => {
 	return (
 		<div className="px-4 sm:px-12">
@@ -19,9 +21,9 @@ export const ResetPasswordPage = ({ token, csrfToken, error }: { token: string; 
 				</div>
 
 				<input type="hidden" name="csrf_token" value={csrfToken} />
-				<button type="submit" className="btn btn-primary w-full">
+				<Button type="submit" className="w-full">
 					Reset Password
-				</button>
+				</Button>
 			</form>
 		</div>
 	);

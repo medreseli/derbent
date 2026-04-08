@@ -1,3 +1,5 @@
+import { Button } from '../components/button';
+
 export const VerifyPendingPage = ({ appId = 'sso', redirect = '/' }: { appId?: string; redirect?: string }) => {
 	const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
 
@@ -9,9 +11,9 @@ export const VerifyPendingPage = ({ appId = 'sso', redirect = '/' }: { appId?: s
 			</p>
 			<p className="mb-8 text-sm text-zinc-500">The link will expire in 15 minutes.</p>
 
-			<a href={`/login?${qs}`} className="btn btn-secondary w-full justify-center">
+			<Button href={`/login?${qs}`} variant="secondary" className="w-full justify-center">
 				Return to login
-			</a>
+			</Button>
 		</div>
 	);
 };

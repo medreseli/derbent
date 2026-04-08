@@ -5,6 +5,9 @@ import build from '@hono/vite-build';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
+	server: {
+		port: 7777,
+	},
 	plugins: [
 		tailwindcss(),
 		devServer({

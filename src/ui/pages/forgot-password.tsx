@@ -1,4 +1,5 @@
 import { AppId } from '../../config/apps';
+import { Button } from '../components/button';
 
 export const ForgotPasswordPage = ({
 	csrfToken,
@@ -19,9 +20,9 @@ export const ForgotPasswordPage = ({
 		return (
 			<div className="text-center">
 				<p className="mb-8 text-sm text-zinc-600">If an account exists for that email, we've sent reset instructions to your inbox.</p>
-				<a href={`/login?${qs}`} className="btn btn-secondary w-full justify-center">
+				<Button href={`/login?${qs}`} variant="secondary" className="w-full justify-center">
 					Return to login
-				</a>
+				</Button>
 			</div>
 		);
 	}
@@ -39,9 +40,9 @@ export const ForgotPasswordPage = ({
 				</div>
 
 				<input type="hidden" name="csrf_token" value={csrfToken} />
-				<button type="submit" className="btn btn-primary w-full">
+				<Button type="submit" className="w-full">
 					Send Reset Link
-				</button>
+				</Button>
 			</form>
 
 			<p className="mt-8 text-center text-sm text-zinc-600">

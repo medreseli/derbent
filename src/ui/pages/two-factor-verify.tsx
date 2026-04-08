@@ -1,4 +1,5 @@
 import { AppId } from '../../config/apps';
+import { Button } from '../components/button';
 
 export const TwoFactorVerifyPage = ({
 	appName,
@@ -45,9 +46,9 @@ export const TwoFactorVerifyPage = ({
 				</div>
 
 				<input type="hidden" name="csrf_token" value={csrfToken} />
-				<button type="submit" className="btn btn-primary w-full">
+				<Button type="submit" className="w-full">
 					Verify
-				</button>
+				</Button>
 			</form>
 
 			<p className="mt-8 text-center text-sm text-zinc-600">

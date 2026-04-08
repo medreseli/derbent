@@ -5,3 +5,5 @@ Add a new UI page or expand the Admin API.
 Implement additional security features like Passkeys (WebAuthn).
 Write unit tests using @cloudflare/vitest-pool-workers.
 Help integrate a consuming application via Cloudflare Service Bindings.
+
+- Resend webhook to listen for email delivery results and taking necessary actions

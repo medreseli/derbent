@@ -22,7 +22,7 @@ import { AdminHandler } from './handlers/admin.handler';
 const app = new Hono<HonoEnv>();
 
 app.use('*', secureHeaders());
-app.get('*', renderer);
+app.use('*', renderer);
 
 app.use('*', async (c, next) => {
 	const logger = new Logger(c.env.LOG_LEVEL || 'info');
@@ -35,9 +35,13 @@ app.use('*', async (c, next) => {
 	const auditLogRepo = new AuditLogRepository(c.env.DB);
 	const loginAttemptRepo = new LoginAttemptRepository(c.env.KV);
 
-	const emailService = new EmailService(c.env.APP_NAME, c.env.BASE_URL, c.env.RESEND_API_KEY, c.env.RESEND_DOMAIN, c.env.EMAIL_QUEUE);
+	const isDev = c.env.APP_ENV === 'development';
 
-	const hashIterations = parseInt(c.env.PBKDF2_ITERATIONS || '50000', 10);
+	// Bypass the queue in local development for immediate execution and error visibility
+	const activeQueue = isDev ? undefined : c.env.EMAIL_QUEUE;
+	const emailService = new EmailService(isDev, c.env.APP_NAME, c.env.BASE_URL, c.env.RESEND_API_KEY, c.env.RESEND_DOMAIN, activeQueue);
+
+	const hashIterations = parseInt(c.env.PBKDF2_ITERATIONS || '100000', 10);
 
 	const authService = new AuthService(
 		userRepo,
@@ -142,7 +146,8 @@ export default {
 		const logger = new Logger(env.LOG_LEVEL || 'info');
 		logger.info(`[QUEUE] Processing batch of ${batch.messages.length} messages`);
 
-		const emailService = new EmailService(env.APP_NAME, env.BASE_URL, env.RESEND_API_KEY, env.RESEND_DOMAIN);
+		const isDev = env.APP_ENV === 'development';
+		const emailService = new EmailService(isDev, env.APP_NAME, env.BASE_URL, env.RESEND_API_KEY, env.RESEND_DOMAIN);
 
 		for (const message of batch.messages) {
 			try {

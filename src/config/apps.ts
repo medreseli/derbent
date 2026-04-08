@@ -18,10 +18,10 @@ export const REGISTERED_APPS: Record<AppId, AppConfig> = {
 	sso: {
 		id: 'sso',
 		name: 'Single sign-on',
-		description: 'Your central, global account for all integrated services.',
+		description: 'Your one account for all our apps.',
 		icon: '/sso.svg',
 		prodUrl: 'https://derbent.zerdalu.com',
-		devUrl: 'http://localhost:8787',
+		devUrl: 'http://localhost:7777',
 	},
 	hodan: {
 		id: 'hodan',

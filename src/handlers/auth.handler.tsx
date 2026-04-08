@@ -52,6 +52,50 @@ function getClientInfo(c: Context) {
 }
 
 export class AuthHandler {
+	/**
+	 * Resolves conflicting session states depending on the app being logged into.
+	 */
+	static async clearConflictingSessions(c: Context<HonoEnv>, newlyLoggedInApp: string) {
+		const authService = c.get('authService');
+		const cookieOpts = getCookieOptions(c);
+
+		if (newlyLoggedInApp === 'sso') {
+			// 1. If logging into global SSO: Wipe all individual app sessions (hodan, namedar, etc.)
+			for (const appKey of Object.keys(REGISTERED_APPS)) {
+				if (appKey === 'sso') continue;
+
+				const cookieName = `session_${appKey}`;
+				const existingSessionId = getCookie(c, cookieName);
+
+				if (existingSessionId) {
+					try {
+						await authService.logout(existingSessionId);
+					} catch (e) {}
+					deleteCookie(c, cookieName, cookieOpts);
+				}
+			}
+		} else {
+			// 2. If logging into a specific app (e.g., 'hodan'):
+			// Wipe the global SSO session to prevent ambiguity, but LEAVE 'namedar' alone.
+			const ssoSessionId = getCookie(c, 'session_sso');
+			if (ssoSessionId) {
+				try {
+					await authService.logout(ssoSessionId);
+				} catch (e) {}
+				deleteCookie(c, 'session_sso', cookieOpts);
+			}
+
+			// 3. Clean up the old session for this specific app if it already exists (preventing orphan KV records).
+			const currentAppSessionId = getCookie(c, `session_${newlyLoggedInApp}`);
+			if (currentAppSessionId) {
+				try {
+					await authService.logout(currentAppSessionId);
+				} catch (e) {}
+				// We don't need to delete the cookie here because the handler will immediately overwrite it.
+			}
+		}
+	}
+
 	static async getActiveSession(c: Context<HonoEnv>): Promise<{ session: Session; appId: string } | null> {
 		const authService = c.get('authService');
 		const { ip, userAgent } = getClientInfo(c);
@@ -196,6 +240,8 @@ export class AuthHandler {
 				const qs = new URLSearchParams({ token: loginResult.twoFactorToken!, app_id: appId, redirect }).toString();
 				return c.redirect(`/2fa/verify?${qs}`);
 			}
+
+			await AuthHandler.clearConflictingSessions(c, loginResult.app);
 
 			const cookieOpts = getCookieOptions(c);
 			cookieOpts.maxAge = 86400;
@@ -494,6 +540,8 @@ export class AuthHandler {
 				return c.redirect(`/2fa/verify?${qs}`);
 			}
 
+			await AuthHandler.clearConflictingSessions(c, loginResult.app);
+
 			const cookieOpts = getCookieOptions(c);
 			cookieOpts.maxAge = 86400;
 
@@ -586,6 +634,8 @@ export class AuthHandler {
 				const qs = new URLSearchParams({ token: loginResult.twoFactorToken!, app_id: appId, redirect }).toString();
 				return c.redirect(`/2fa/verify?${qs}`);
 			}
+
+			await AuthHandler.clearConflictingSessions(c, loginResult.app);
 
 			const loginCookieOpts = getCookieOptions(c);
 			loginCookieOpts.maxAge = 86400;
@@ -685,6 +735,8 @@ export class AuthHandler {
 				return c.redirect(`/2fa/verify?${qs}`);
 			}
 
+			await AuthHandler.clearConflictingSessions(c, loginResult.app);
+
 			const loginCookieOpts = getCookieOptions(c);
 			loginCookieOpts.maxAge = 86400;
 			setCookie(c, `session_${loginResult.app}`, loginResult.sessionId!, loginCookieOpts);
@@ -779,6 +831,8 @@ export class AuthHandler {
 
 		try {
 			const result = await c.get('authService').verifyTwoFactorLogin(token, code, ip, userAgent);
+
+			await AuthHandler.clearConflictingSessions(c, result.app);
 
 			const cookieOpts = getCookieOptions(c);
 			cookieOpts.maxAge = 86400;
