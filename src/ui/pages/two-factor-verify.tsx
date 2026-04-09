@@ -19,9 +19,9 @@ export const TwoFactorVerifyPage = ({
 	const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
 
 	return (
-		<div className="px-4 sm:px-12">
+		<div className="px-4 py-8 sm:px-8">
 			<h2 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900">Two-Factor Authentication</h2>
-			<p className="mb-8 text-center text-sm text-zinc-600">
+			<p className="mb-8 text-center text-base text-zinc-600">
 				Enter the code from your authenticator app to continue to <strong className="text-zinc-900">{appName}</strong>.
 			</p>
 

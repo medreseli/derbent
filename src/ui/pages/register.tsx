@@ -17,7 +17,7 @@ export const RegisterPage = ({
 	const appName = appInfo ? appInfo.name : 'Derbent';
 
 	return (
-		<div className="px-4 sm:px-12">
+		<div className="px-4 py-8 sm:px-8">
 			<p className="mb-8 text-center text-lg text-zinc-600">
 				{appId === 'sso' ? (
 					<>Create a global account to access all services</>

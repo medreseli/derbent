@@ -43,7 +43,20 @@ export const renderer = jsxRenderer(({ children }, c) => {
 					</div>
 
 					<div className="w-full sm:mx-auto sm:max-w-md">
-						<div className="bg-white py-8 shadow-xs ring-1 ring-gray-700 sm:rounded-lg">{children}</div>
+						<div className="bg-white shadow-xs ring-1 ring-gray-700 sm:rounded-lg">{children}</div>
+					</div>
+
+					{/* GLOBAL FOOTER ACTIONS */}
+					<div className="mt-10 flex flex-col items-center gap-6">
+						<div className="flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-700 uppercase">
+							<div className="h-px w-8 bg-zinc-300" />
+							<div className="flex flex-col items-center">
+								<span>Security</span>
+								<span className="text-[8px]">with</span>
+								<span>care and ease</span>
+							</div>
+							<div className="h-px w-8 bg-zinc-300" />
+						</div>
 					</div>
 				</div>
 			</body>

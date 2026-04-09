@@ -28,7 +28,7 @@ export const REGISTERED_APPS: Record<AppId, AppConfig> = {
 		name: 'Hodan',
 		description: 'Your storyboarding studio',
 		icon: '/hodan.svg',
-		prodUrl: 'https://namedar.zerdalu.com',
+		prodUrl: 'https://hodan.zerdalu.com',
 		devUrl: 'http://localhost:5173',
 	},
 	namedar: {

@@ -26,9 +26,9 @@ export const TwoFactorSetupPage = ({
 	}).svg();
 
 	return (
-		<div className="px-4 sm:px-12">
+		<div className="px-4 py-8 sm:px-8">
 			<h2 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900">Set up Two-Factor Authentication</h2>
-			<p className="mb-8 text-center text-sm text-zinc-600">Scan the QR code with your authenticator app.</p>
+			<p className="mb-8 text-center text-base text-zinc-600">Scan the QR code with your authenticator app.</p>
 
 			{error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-600/20">{error}</div>}
 
@@ -85,9 +85,9 @@ export const TwoFactorManagePage = ({ csrfToken, isEnabled, error }: { csrfToken
 	}
 
 	return (
-		<div className="px-4 sm:px-12">
+		<div className="px-4 py-8 sm:px-8">
 			<h2 className="mb-2 text-center text-xl font-bold tracking-tight text-zinc-900">Manage Two-Factor Authentication</h2>
-			<p className="mb-8 text-center text-sm text-zinc-600">
+			<p className="mb-8 text-center text-base text-zinc-600">
 				Two-Factor Authentication is currently <strong className="text-green-600">Enabled</strong>.
 			</p>
 

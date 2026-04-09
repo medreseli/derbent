@@ -53,7 +53,7 @@ export const ActionMenu = ({ app, csrfToken }: ActionMenuProps) => {
 			></div>
 
 			{/* Dropdown Container */}
-			<div className="absolute -top-3 right-12 z-20 mt-2 w-48 origin-top-right divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white shadow-sm ring-1 ring-black/5 focus:outline-none md:w-auto md:min-w-max">
+			<div className="absolute -top-3.5 right-12 z-20 mt-2 w-48 origin-top-right divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white shadow-sm ring-1 ring-black/5 focus:outline-none md:w-auto md:min-w-max">
 				{/* Desktop Layout: Horizontal Icon Bar */}
 				<div className="hidden items-center gap-1 p-1 md:flex">
 					{actions.map((action) => (

@@ -28,8 +28,8 @@ export const ForgotPasswordPage = ({
 	}
 
 	return (
-		<div className="px-4 sm:px-12">
-			<p className="mb-8 text-center text-sm text-zinc-600">Enter your email and we'll send you a link to reset your password.</p>
+		<div className="px-4 py-8 sm:px-8">
+			<p className="mb-8 text-center text-base text-zinc-600">Enter your email and we'll send you a link to reset your password.</p>
 
 			{error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-600/20">{error}</div>}
 

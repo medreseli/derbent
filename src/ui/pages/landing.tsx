@@ -29,12 +29,12 @@ const AppListRow = ({
 	app,
 	csrfToken,
 	isLoggedInAsSSO,
-	isSso,
+	isThisRowSSO,
 }: {
 	app: AppStatus;
 	csrfToken: string;
 	isLoggedInAsSSO: boolean;
-	isSso?: boolean;
+	isThisRowSSO: boolean;
 }) => {
 	const isLoggedIn = app.session !== null;
 
@@ -58,7 +58,7 @@ const AppListRow = ({
 				<div>
 					<div className="flex items-center gap-2">
 						<span className={`font-semibold ${isLoggedIn ? 'text-zinc-900' : 'text-zinc-700'}`}>{app.config.name}</span>
-						{isSso && (
+						{isThisRowSSO && (
 							<span className="rounded-full bg-emerald-200 px-2 py-0.5 text-[10px] font-bold tracking-wider text-zinc-700 uppercase">
 								SSO
 							</span>
@@ -71,9 +71,10 @@ const AppListRow = ({
 			</div>
 
 			<div className="flex items-center gap-2">
-				{isSso && isLoggedInAsSSO && <ActionMenu app={app} csrfToken={csrfToken} />}
+				{isThisRowSSO && isLoggedInAsSSO && <ActionMenu app={app} csrfToken={csrfToken} />}
+				{!isThisRowSSO && !isLoggedInAsSSO && isLoggedIn && <ActionMenu app={app} csrfToken={csrfToken} />}
 
-				{!isSso && isLoggedIn && (
+				{!isThisRowSSO && isLoggedInAsSSO && isLoggedIn && (
 					<a
 						href={app.config.url}
 						target="_blank"
@@ -121,34 +122,21 @@ export const LandingPage = ({
 
 	return (
 		<div className="">
-			<p className="mb-8 text-center text-sm text-zinc-600">Manage your identity and access across our applications.</p>
+			<p className="mb-8 pt-8 text-center text-base text-zinc-600">
+				Manage your identity and access <br /> across our applications.
+			</p>
 
 			{successMsg && <SuccessMessage message={successMsg} />}
 
 			<div className="divide-y divide-zinc-200">
 				{/* Render SSO app at top if it exists */}
-				{ssoApp && <AppListRow app={ssoApp} csrfToken={csrfToken} isLoggedInAsSSO={isLoggedInAsSSO} isSso={true} />}
+				{ssoApp && <AppListRow app={ssoApp} csrfToken={csrfToken} isLoggedInAsSSO={isLoggedInAsSSO} isThisRowSSO={true} />}
 
 				{/* Render regular apps */}
 				{regularApps.map((app) => (
-					<AppListRow key={app.config.id} app={app} csrfToken={csrfToken} isLoggedInAsSSO={isLoggedInAsSSO} />
+					<AppListRow key={app.config.id} app={app} csrfToken={csrfToken} isLoggedInAsSSO={isLoggedInAsSSO} isThisRowSSO={false} />
 				))}
 			</div>
-
-			{/* GLOBAL FOOTER ACTIONS */}
-			{hasAnySession && (
-				<div className="mt-10 flex flex-col items-center gap-6 border-t border-zinc-300 pt-8">
-					<div className="flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-700 uppercase">
-						<div className="h-px w-8 bg-zinc-300" />
-						<div className="flex flex-col items-center">
-							<span>Security</span>
-							<span className="text-[8px]">with</span>
-							<span>care and ease</span>
-						</div>
-						<div className="h-px w-8 bg-zinc-300" />
-					</div>
-				</div>
-			)}
 		</div>
 	);
 };

@@ -2,8 +2,8 @@ import { Button } from '../components/button';
 
 export const ChangePasswordPage = ({ csrfToken, error, success }: { csrfToken: string; error?: string; success?: string }) => {
 	return (
-		<div className="px-4 sm:px-12">
-			<p className="mb-8 text-center text-sm text-zinc-600">Update your password to keep your account secure.</p>
+		<div className="px-4 py-8 sm:px-8">
+			<p className="mb-8 text-center text-base text-zinc-600">Update your password to keep your account secure.</p>
 
 			{success && <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-800 ring-1 ring-green-600/20">{success}</div>}
 			{error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-600/20">{error}</div>}
