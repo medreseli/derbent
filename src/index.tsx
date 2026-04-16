@@ -18,6 +18,7 @@ import { LoginAttemptRepository } from './repositories/login-attempt.repository'
 import { EmailQueueMessage } from './types/queue';
 import { adminAuth } from './middleware/admin.middleware';
 import { AdminHandler } from './handlers/admin.handler';
+import { AdminService } from './services/admin.service';
 
 const app = new Hono<HonoEnv>();
 
@@ -54,6 +55,10 @@ app.use('*', async (c, next) => {
 		hashIterations,
 	);
 	c.set('authService', authService);
+
+	// Initialize AdminService and attach to context
+	const adminService = new AdminService(userRepo, auditLogRepo, userTokenVersionRepo, hashIterations);
+	c.set('adminService', adminService);
 
 	await next();
 });
@@ -118,6 +123,10 @@ adminRoutes.delete('/users/:id', AdminHandler.deleteUser);
 
 adminRoutes.delete('/users/:id/sessions', AdminHandler.revokeSessions);
 adminRoutes.post('/users/:id/lock', AdminHandler.lockAccount);
+
+// Audit Logs
+adminRoutes.get('/audit-logs', AdminHandler.getAuditLogs);
+adminRoutes.get('/users/:id/audit-logs', AdminHandler.getUserAuditLogs);
 
 app.route('/admin', adminRoutes);
 

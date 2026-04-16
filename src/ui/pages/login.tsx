@@ -54,7 +54,7 @@ export const LoginPage = ({
 							<div className="w-full border-t border-zinc-200"></div>
 						</div>
 						<div className="relative flex justify-center text-sm leading-6 font-medium">
-							<span className="bg-white px-6 text-zinc-900">Or continue with email</span>
+							<span className="bg-white px-6 text-zinc-900">or</span>
 						</div>
 					</div>
 				</>

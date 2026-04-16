@@ -135,4 +135,22 @@ export class AdminService {
 			email: user.email,
 		});
 	}
+
+	// --- AUDIT LOGS ---
+
+	async getAuditLogs(page: number, limit: number, action?: string) {
+		const offset = (page - 1) * limit;
+		const data = await this.auditLogRepo.findMany(limit, offset, action);
+		const total = await this.auditLogRepo.count(action);
+
+		return { data, total, page, limit };
+	}
+
+	async getUserAuditLogs(userId: string, page: number, limit: number) {
+		const offset = (page - 1) * limit;
+		const data = await this.auditLogRepo.findByUserId(userId, limit, offset);
+		const total = await this.auditLogRepo.countByUserId(userId);
+
+		return { data, total, page, limit };
+	}
 }
