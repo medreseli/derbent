@@ -240,6 +240,26 @@ Derbent exposes privileged endpoints to manage users and system security. These 
 | `/admin/users/:id/2fa`      | `DELETE` | Disable 2FA                                   |
 | `/admin/users/:id`          | `DELETE` | Permanently delete a user & audit logs        |
 
+### Admin Dashboard Secret
+
+Generate admin dashboard secret with this command:
+
+```bash
+openssl rand -hex 32
+```
+
+#### For Local Development
+
+```
+ADMIN_SECRET=your_generated_hex_string_here
+```
+
+#### For Production
+
+```bash
+npx wrangler secret put ADMIN_SECRET
+```
+
 ## Testing
 
 ```bash
