@@ -21,6 +21,62 @@ export class AdminService {
 		return { data: users, total, page, limit };
 	}
 
+	async getDashboardStats() {
+		const daysForTrend = 30;
+
+		// Run all queries concurrently for maximum performance
+		const [userStats, auditStats, signupsRaw, loginsRaw] = await Promise.all([
+			this.userRepo.getDashboardStats(),
+			this.auditLogRepo.getDashboardStats(),
+			this.userRepo.getSignupsTrend(daysForTrend),
+			this.auditLogRepo.getLoginsTrend(daysForTrend),
+		]);
+
+		const mfaPercentage = userStats.total > 0 ? Math.round((userStats.mfaEnabled / userStats.total) * 100) : 0;
+
+		// Utility to generate a contiguous list of the last N days (YYYY-MM-DD)
+		const dates: string[] = [];
+		const now = new Date();
+		for (let i = daysForTrend - 1; i >= 0; i--) {
+			const d = new Date(now);
+			d.setDate(d.getDate() - i);
+			dates.push(d.toISOString().split('T')[0]);
+		}
+
+		// Zero-fill the missing days in memory for the frontend charts
+		const signupsMap = new Map(signupsRaw.map((r) => [r.date, r.count]));
+		const signupsTrend = dates.map((date) => ({
+			date,
+			count: signupsMap.get(date) || 0,
+		}));
+
+		const loginsMap = new Map(loginsRaw.map((r) => [r.date, r]));
+		const loginsTrend = dates.map((date) => ({
+			date,
+			success: loginsMap.get(date)?.success || 0,
+			failed: loginsMap.get(date)?.failed || 0,
+		}));
+
+		return {
+			users: {
+				total: userStats.total,
+				newLast7Days: userStats.newLast7Days,
+				mfaEnabled: userStats.mfaEnabled,
+				mfaPercentage,
+				locked: userStats.locked,
+			},
+			activity: {
+				failedLogins24h: auditStats.failedLogins24h,
+				lockouts24h: auditStats.lockouts24h,
+				pwdResets24h: auditStats.pwdResets24h,
+			},
+			trends: {
+				signups: signupsTrend,
+				logins: loginsTrend,
+			},
+		};
+	}
+
 	async getUser(userId: string): Promise<User> {
 		const user = await this.userRepo.findById(userId);
 		if (!user) throw new AppError('User not found', 404);

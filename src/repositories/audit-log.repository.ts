@@ -113,4 +113,42 @@ export class AuditLogRepository {
 			.first<{ total: number }>();
 		return result?.total || 0;
 	}
+
+	async getDashboardStats(): Promise<{ failedLogins24h: number; lockouts24h: number; pwdResets24h: number }> {
+		const result = await this.db
+			.prepare(
+				`SELECT
+					SUM(CASE WHEN action = 'login_failed' THEN 1 ELSE 0 END) as failedLogins24h,
+					SUM(CASE WHEN action = 'login_locked_out' THEN 1 ELSE 0 END) as lockouts24h,
+					SUM(CASE WHEN action = 'password_reset_requested' THEN 1 ELSE 0 END) as pwdResets24h
+				FROM audit_logs
+				WHERE created_at >= datetime('now', '-1 day')`,
+			)
+			.first<{ failedLogins24h: number; lockouts24h: number; pwdResets24h: number }>();
+
+		return {
+			failedLogins24h: result?.failedLogins24h || 0,
+			lockouts24h: result?.lockouts24h || 0,
+			pwdResets24h: result?.pwdResets24h || 0,
+		};
+	}
+
+	async getLoginsTrend(days: number): Promise<{ date: string; success: number; failed: number }[]> {
+		const { results } = await this.db
+			.prepare(
+				`SELECT 
+					DATE(created_at) as date,
+					SUM(CASE WHEN action = 'login_success' THEN 1 ELSE 0 END) as success,
+					SUM(CASE WHEN action LIKE 'login_failed%' THEN 1 ELSE 0 END) as failed
+				FROM audit_logs
+				WHERE action IN ('login_success', 'login_failed', 'login_failed_locked')
+				  AND created_at >= date('now', ?)
+				GROUP BY DATE(created_at)
+				ORDER BY date ASC`,
+			)
+			.bind(`-${days} days`)
+			.all<{ date: string; success: number; failed: number }>();
+
+		return results || [];
+	}
 }

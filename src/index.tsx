@@ -114,6 +114,8 @@ app.get('/auth/google/callback', AuthHandler.handleGoogleCallback);
 const adminRoutes = new Hono<HonoEnv>();
 adminRoutes.use('*', adminAuth());
 
+adminRoutes.get('/stats', AdminHandler.getStats);
+
 adminRoutes.get('/users', AdminHandler.getUsers);
 adminRoutes.get('/users/:id', AdminHandler.getUser);
 adminRoutes.patch('/users/:id', AdminHandler.updateUser);

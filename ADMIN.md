@@ -60,6 +60,25 @@ interface ErrorResponse {
 The following TypeScript interfaces describe the data returned by the API. _Note: Because Derbent uses Cloudflare D1 (SQLite), booleans are often represented as `0` (false) and `1` (true)._
 
 ```typescript
+export interface DashboardStats {
+	users: {
+		total: number;
+		newLast7Days: number;
+		mfaEnabled: number;
+		mfaPercentage: number;
+		locked: number;
+	};
+	activity: {
+		failedLogins24h: number;
+		lockouts24h: number;
+		pwdResets24h: number;
+	};
+	trends: {
+		signups: Array<{ date: string; count: number }>;
+		logins: Array<{ date: string; success: number; failed: number }>;
+	};
+}
+
 export interface User {
 	id: string; // UUIDv7
 	app: string; // 'sso', 'hodan', 'namedar', etc.
@@ -98,7 +117,15 @@ export interface PaginatedResponse<T> {
 
 ## 3. Endpoints
 
-### 3.1 Get Users
+### 3.1 Get Dashboard Statistics
+
+Retrieves aggregated system health, security posture metrics, and time-series trends for the main dashboard views.
+
+- **Route:** `GET /admin/stats`
+- **Query Parameters:** None
+- **Response `200 OK`:** `DashboardStats`
+
+### 3.2 Get Users
 
 Lists users with optional pagination and search capabilities.
 
@@ -109,7 +136,7 @@ Lists users with optional pagination and search capabilities.
   - `search` (optional) - Searches by exact `id` or partial `email` (using `LIKE %search%`).
 - **Response `200 OK`:** `PaginatedResponse<User>`
 
-### 3.2 Get Single User
+### 3.3 Get Single User
 
 Retrieves a specific user by their ID.
 
@@ -119,7 +146,7 @@ Retrieves a specific user by their ID.
 - **Response `200 OK`:** `User`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.3 Update User
+### 3.4 Update User
 
 Updates basic attributes of a user.
 
@@ -132,7 +159,7 @@ Updates basic attributes of a user.
 - **Response `400 Bad Request`:** Validation failed.
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.4 Force Reset Password
+### 3.5 Force Reset Password
 
 Overrides the user's current password. **Crucial:** This instantly revokes all active sessions for the user.
 
@@ -143,7 +170,7 @@ Overrides the user's current password. **Crucial:** This instantly revokes all a
 - **Response `400 Bad Request`:** Validation failed, OR `{ "error": "Cannot reset password for OAuth-only accounts." }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.5 Disable 2FA
+### 3.6 Disable 2FA
 
 Turns off Two-Factor Authentication for a user.
 
@@ -153,7 +180,7 @@ Turns off Two-Factor Authentication for a user.
 - **Response `400 Bad Request`:** `{ "error": "2FA is already disabled for this user." }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.6 Delete User
+### 3.7 Delete User
 
 Permanently deletes a user, their sessions, and **all of their associated audit logs**.
 
@@ -162,7 +189,7 @@ Permanently deletes a user, their sessions, and **all of their associated audit 
 - **Response `200 OK`:** `{ "success": true }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.7 Revoke All Sessions
+### 3.8 Revoke All Sessions
 
 Forces a logout on all devices for the given user by clearing their token version in KV and incrementing it in D1.
 
@@ -171,7 +198,7 @@ Forces a logout on all devices for the given user by clearing their token versio
 - **Response `200 OK`:** `{ "success": true }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.8 Lock / Unlock Account
+### 3.9 Lock / Unlock Account
 
 Changes the lock status of an account. **Crucial:** Locking an account will immediately boot them out of all active sessions.
 
@@ -182,7 +209,7 @@ Changes the lock status of an account. **Crucial:** Locking an account will imme
 - **Response `400 Bad Request`:** Validation failed.
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.9 Get Global Audit Logs
+### 3.10 Get Global Audit Logs
 
 Retrieves a paginated list of all system audit logs.
 
@@ -193,7 +220,7 @@ Retrieves a paginated list of all system audit logs.
   - `action` (optional) - Filter by specific action (e.g., `login_success`, `login_failed`, `admin_update_user`).
 - **Response `200 OK`:** `PaginatedResponse<AuditLogRecord>`
 
-### 3.10 Get User Audit Logs
+### 3.11 Get User Audit Logs
 
 Retrieves a paginated list of audit logs specifically tied to a given user ID.
 

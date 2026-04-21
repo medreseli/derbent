@@ -5,6 +5,18 @@ import { AdminForcePasswordSchema, AdminLockAccountSchema, AdminUpdateUserSchema
 import { AppError } from '../types/errors';
 
 export class AdminHandler {
+	static async getStats(c: Context<HonoEnv>) {
+		const adminService = c.get('adminService');
+		try {
+			const stats = await adminService.getDashboardStats();
+			return c.json(stats);
+		} catch (err) {
+			const status = err instanceof AppError ? err.status : 500;
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.json({ error: msg }, status);
+		}
+	}
+
 	static async getUsers(c: Context<HonoEnv>) {
 		const adminService = c.get('adminService');
 		const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);

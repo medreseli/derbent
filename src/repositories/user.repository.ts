@@ -166,4 +166,41 @@ export class UserRepository {
 	async delete(id: string): Promise<void> {
 		await this.db.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
 	}
+
+	async getDashboardStats(): Promise<{ total: number; newLast7Days: number; mfaEnabled: number; locked: number }> {
+		const result = await this.db
+			.prepare(
+				`SELECT 
+					COUNT(*) as total,
+					SUM(CASE WHEN created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) as newLast7Days,
+					SUM(CASE WHEN two_factor_enabled = 1 THEN 1 ELSE 0 END) as mfaEnabled,
+					SUM(CASE WHEN is_locked = 1 THEN 1 ELSE 0 END) as locked
+				FROM users`,
+			)
+			.first<{ total: number; newLast7Days: number; mfaEnabled: number; locked: number }>();
+
+		return {
+			total: result?.total || 0,
+			newLast7Days: result?.newLast7Days || 0,
+			mfaEnabled: result?.mfaEnabled || 0,
+			locked: result?.locked || 0,
+		};
+	}
+
+	async getSignupsTrend(days: number): Promise<{ date: string; count: number }[]> {
+		const { results } = await this.db
+			.prepare(
+				`SELECT 
+					DATE(created_at) as date, 
+					COUNT(*) as count
+				FROM users
+				WHERE created_at >= date('now', ?)
+				GROUP BY DATE(created_at)
+				ORDER BY date ASC`,
+			)
+			.bind(`-${days} days`)
+			.all<{ date: string; count: number }>();
+
+		return results || [];
+	}
 }
