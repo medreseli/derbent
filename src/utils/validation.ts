@@ -1,8 +1,7 @@
 import * as v from 'valibot';
-import { ALLOWED_APPS } from '../config/apps';
 
 export const QuerySchema = v.object({
-	app_id: v.optional(v.picklist(ALLOWED_APPS), 'sso'),
+	app_id: v.optional(v.string(), 'sso'),
 	redirect: v.optional(v.string(), '/'),
 });
 
@@ -54,7 +53,7 @@ export const ChangePasswordSchema = v.pipe(
 	v.check((input) => input.newPassword === input.confirmNewPassword, 'New passwords do not match.'),
 );
 
-// Admin Schemas
+// Admin User Schemas
 export const AdminUpdateUserSchema = v.object({
 	metadata: v.optional(v.record(v.string(), v.any())),
 	email_verified: v.optional(v.union([v.literal(0), v.literal(1)])),
@@ -68,3 +67,18 @@ export const AdminForcePasswordSchema = v.object({
 export const AdminLockAccountSchema = v.object({
 	locked: v.boolean('Locked status must be a boolean.'),
 });
+
+// Admin App Schemas
+export const AdminCreateAppSchema = v.object({
+	id: v.pipe(v.string(), v.minLength(1), v.regex(/^[a-z0-9-]+$/, 'App ID must be lowercase, alphanumeric, or dashes.')),
+	name: v.pipe(v.string(), v.minLength(1)),
+	description: v.optional(v.string()),
+	icon: v.optional(v.string()),
+	prod_url: v.pipe(v.string(), v.url('Must be a valid URL')),
+	dev_url: v.pipe(v.string(), v.url('Must be a valid URL')),
+	allow_signups: v.union([v.literal(0), v.literal(1)]),
+	allow_logins: v.union([v.literal(0), v.literal(1)]),
+});
+
+// v.partial makes all properties optional for PATCH requests
+export const AdminUpdateAppSchema = v.partial(AdminCreateAppSchema);

@@ -1,7 +1,13 @@
 import { Context } from 'hono';
 import { HonoEnv } from '../types/hono-env';
 import * as v from 'valibot';
-import { AdminForcePasswordSchema, AdminLockAccountSchema, AdminUpdateUserSchema } from '../utils/validation';
+import {
+	AdminCreateAppSchema,
+	AdminForcePasswordSchema,
+	AdminLockAccountSchema,
+	AdminUpdateAppSchema,
+	AdminUpdateUserSchema,
+} from '../utils/validation';
 import { AppError } from '../types/errors';
 
 export class AdminHandler {
@@ -173,6 +179,83 @@ export class AdminHandler {
 		try {
 			const result = await adminService.getUserAuditLogs(id, page, limit);
 			return c.json(result);
+		} catch (err) {
+			const status = err instanceof AppError ? err.status : 500;
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.json({ error: msg }, status);
+		}
+	}
+
+	static async getApps(c: Context<HonoEnv>) {
+		const adminService = c.get('adminService');
+		try {
+			const apps = await adminService.getApps();
+			return c.json({ data: apps });
+		} catch (err) {
+			const status = err instanceof AppError ? err.status : 500;
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.json({ error: msg }, status);
+		}
+	}
+
+	static async getApp(c: Context<HonoEnv>) {
+		const adminService = c.get('adminService');
+		const id = c.req.param('id') as string;
+		try {
+			const app = await adminService.getApp(id);
+			return c.json(app);
+		} catch (err) {
+			const status = err instanceof AppError ? err.status : 500;
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.json({ error: msg }, status);
+		}
+	}
+
+	static async createApp(c: Context<HonoEnv>) {
+		const adminService = c.get('adminService');
+		try {
+			const body = await c.req.json();
+			const result = v.safeParse(AdminCreateAppSchema, body);
+
+			if (!result.success) {
+				return c.json({ error: 'Validation failed', issues: result.issues }, 400);
+			}
+
+			await adminService.createApp(result.output as any);
+			return c.json({ success: true }, 201);
+		} catch (err) {
+			const status = err instanceof AppError ? err.status : 500;
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.json({ error: msg }, status);
+		}
+	}
+
+	static async updateApp(c: Context<HonoEnv>) {
+		const adminService = c.get('adminService');
+		const id = c.req.param('id') as string;
+		try {
+			const body = await c.req.json();
+			const result = v.safeParse(AdminUpdateAppSchema, body);
+
+			if (!result.success) {
+				return c.json({ error: 'Validation failed', issues: result.issues }, 400);
+			}
+
+			const app = await adminService.updateApp(id, result.output as any);
+			return c.json({ success: true, app });
+		} catch (err) {
+			const status = err instanceof AppError ? err.status : 500;
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.json({ error: msg }, status);
+		}
+	}
+
+	static async deleteApp(c: Context<HonoEnv>) {
+		const adminService = c.get('adminService');
+		const id = c.req.param('id') as string;
+		try {
+			await adminService.deleteApp(id);
+			return c.json({ success: true });
 		} catch (err) {
 			const status = err instanceof AppError ? err.status : 500;
 			const msg = err instanceof AppError ? err.message : 'Internal Server Error';

@@ -134,6 +134,11 @@ export class UserRepository {
 		return result?.total || 0;
 	}
 
+	async countByApp(appId: string): Promise<number> {
+		const result = await this.db.prepare('SELECT COUNT(*) as total FROM users WHERE app = ?').bind(appId).first<{ total: number }>();
+		return result?.total || 0;
+	}
+
 	async update(id: string, data: Partial<Pick<User, 'metadata' | 'email_verified' | 'app'>>): Promise<User | null> {
 		const updates: string[] = [];
 		const params: any[] = [];

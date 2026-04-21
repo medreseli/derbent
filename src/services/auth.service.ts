@@ -3,16 +3,16 @@ import { Session } from '../types/session';
 import { SessionRepository } from '../repositories/session.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { TokenRepository } from '../repositories/token.repository';
-import { EmailService } from './email.service';
-import { AppError } from '../types/errors';
 import { UserTokenVersionRepository } from '../repositories/user-token-version.repository';
+import { AppRepository } from '../repositories/app.repository';
+import { EmailService } from './email.service';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { LoginAttemptRepository } from '../repositories/login-attempt.repository';
+import { AppError } from '../types/errors';
 import { generateUUIDv7 } from '../utils/uuid';
 import { User } from '../types/user';
 import { LoginResult } from '../types/auth';
 import { verifyTOTP } from '../utils/totp';
-import { AppId } from '../config/apps';
 
 export class AuthService {
 	constructor(
@@ -20,6 +20,7 @@ export class AuthService {
 		private sessionRepo: SessionRepository,
 		private tokenRepo: TokenRepository,
 		private userTokenVersionRepo: UserTokenVersionRepository,
+		private appRepo: AppRepository,
 		private emailService: EmailService,
 		private auditLogRepo: AuditLogRepository,
 		private loginAttemptRepo: LoginAttemptRepository,
@@ -92,6 +93,11 @@ export class AuthService {
 	}
 
 	async login(email: string, password: string, appId: string, ip: string, userAgent: string): Promise<LoginResult> {
+		const appRecord = await this.appRepo.findById(appId);
+		if (!appRecord || appRecord.allow_logins === 0) {
+			throw new AppError('Logins are currently disabled for this application.', 403);
+		}
+
 		const attempts = await this.loginAttemptRepo.getAttempts(email);
 		if (attempts >= 5) {
 			await this.auditLogRepo.log({ action: 'login_locked_out', email, ip, userAgent, details: { attempts } });
@@ -128,7 +134,6 @@ export class AuthService {
 			throw new AppError('EMAIL_NOT_VERIFIED', 403);
 		}
 
-		// --- Transparent Hash Upgrading ---
 		if (!user.phash.startsWith('OAUTH:') && needsRehash(user.phash, this.hashIterations)) {
 			try {
 				const newHash = await hashPassword(password, this.hashIterations);
@@ -143,6 +148,11 @@ export class AuthService {
 	}
 
 	async loginWithOAuth(email: string, provider: string, appId: string, ip: string, userAgent: string): Promise<LoginResult> {
+		const appRecord = await this.appRepo.findById(appId);
+		if (!appRecord || appRecord.allow_logins === 0) {
+			throw new AppError('Logins are currently disabled for this application.', 403);
+		}
+
 		let user = await this.userRepo.findForLogin(email, appId);
 
 		if (!user) {
@@ -171,7 +181,12 @@ export class AuthService {
 		return this.handleSuccessfulAuthentication(user, appId, ip, userAgent, `oauth_${provider}`);
 	}
 
-	async register(email: string, password: string, appId: AppId, redirect: string, ip: string, userAgent: string): Promise<void> {
+	async register(email: string, password: string, appId: string, redirect: string, ip: string, userAgent: string): Promise<void> {
+		const appRecord = await this.appRepo.findById(appId);
+		if (!appRecord || appRecord.allow_signups === 0) {
+			throw new AppError('Registrations are currently closed for this application.', 403);
+		}
+
 		const existingSso = await this.userRepo.findByEmailAndApp(email, 'sso');
 		if (existingSso) throw new AppError('An SSO account already exists for this email.');
 
@@ -325,7 +340,7 @@ export class AuthService {
 		await this.emailService.sendPasswordResetEmail(email, token);
 	}
 
-	async resetPassword(token: string, newPassword: string, ip: string, userAgent: string): Promise<AppId> {
+	async resetPassword(token: string, newPassword: string, ip: string, userAgent: string): Promise<string> {
 		const userId = await this.tokenRepo.getUserIdFromResetToken(token);
 		if (!userId) {
 			await this.auditLogRepo.log({
@@ -346,7 +361,7 @@ export class AuthService {
 		await this.tokenRepo.deletePasswordResetToken(token);
 
 		await this.auditLogRepo.log({ action: 'password_reset_success', userId, ip, userAgent });
-		return user.app as AppId;
+		return user.app;
 	}
 
 	async changePassword(userId: string, currentPassword: string, newPassword: string, ip: string, userAgent: string): Promise<void> {
@@ -377,6 +392,11 @@ export class AuthService {
 	}
 
 	async requestMagicLink(email: string, appId: string, redirect: string, ip: string, userAgent: string): Promise<void> {
+		const appRecord = await this.appRepo.findById(appId);
+		if (!appRecord || appRecord.allow_logins === 0) {
+			throw new AppError('Logins are currently disabled for this application.', 403);
+		}
+
 		const user = await this.userRepo.findForLogin(email, appId);
 		await this.auditLogRepo.log({
 			action: 'magic_link_requested',

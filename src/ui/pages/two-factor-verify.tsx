@@ -1,4 +1,3 @@
-import { AppId } from '../../config/apps';
 import { Button } from '../components/button';
 
 export const TwoFactorVerifyPage = ({
@@ -11,7 +10,7 @@ export const TwoFactorVerifyPage = ({
 }: {
 	appName: string;
 	token: string;
-	appId: AppId;
+	appId: string;
 	redirect: string;
 	csrfToken: string;
 	error?: string;

@@ -1,8 +1,6 @@
-import { AppId } from '../config/apps';
-
 export interface User {
 	id: string;
-	app: AppId;
+	app: string;
 	email: string;
 	email_verified: number; // SQLite uses 0/1 for booleans; 0 = False, 1 = True
 	phash: string;

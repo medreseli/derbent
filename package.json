@@ -13,6 +13,7 @@
 		"reset": "rm -rf .wrangler/state/v3 && wrangler d1 execute DB --file './db/schema.sql' --local",
 		"cf-typegen": "wrangler types",
 		"çat": "vite dev",
+		"kur": "npm run build",
 		"yay": "npm run deploy",
 		"nevile": "wrangler types"
 	},
@@ -31,7 +32,7 @@
 		"typescript": "^5.5.2",
 		"vite": "^8.0.5",
 		"vitest": "^4.1.2",
-		"wrangler": "^4.83.0"
+		"wrangler": "^4.84.1"
 	},
 	"dependencies": {
 		"hono": "^4.12.14",

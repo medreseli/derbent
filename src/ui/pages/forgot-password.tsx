@@ -1,4 +1,3 @@
-import { AppId } from '../../config/apps';
 import { Button } from '../components/button';
 
 export const ForgotPasswordPage = ({
@@ -9,7 +8,7 @@ export const ForgotPasswordPage = ({
 	success,
 }: {
 	csrfToken: string;
-	appId: AppId;
+	appId: string;
 	redirect: string;
 	error?: string;
 	success?: boolean;
@@ -18,7 +17,7 @@ export const ForgotPasswordPage = ({
 
 	if (success) {
 		return (
-			<div className="text-center">
+			<div className="px-4 py-8 text-center">
 				<p className="mb-8 text-sm text-zinc-600">If an account exists for that email, we've sent reset instructions to your inbox.</p>
 				<Button href={`/login?${qs}`} variant="secondary" className="w-full justify-center">
 					Return to login

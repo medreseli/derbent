@@ -1,9 +1,9 @@
-import { AppId, REGISTERED_APPS } from '../../config/apps';
 import { GithubIcon, GoogleIcon } from '../helpers/icons';
 import { Button } from '../components/button';
 
 export const LoginPage = ({
 	appId,
+	appName,
 	redirect,
 	csrfToken,
 	error,
@@ -11,7 +11,8 @@ export const LoginPage = ({
 	githubClientId,
 	googleClientId,
 }: {
-	appId: AppId;
+	appId: string;
+	appName: string;
 	redirect: string;
 	csrfToken: string;
 	error?: string;
@@ -20,8 +21,6 @@ export const LoginPage = ({
 	googleClientId?: string;
 }) => {
 	const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
-	const appInfo = REGISTERED_APPS[appId];
-	const appName = appInfo ? appInfo.name : 'Derbent';
 
 	return (
 		<div className="px-4 py-8 sm:px-8">

@@ -1,20 +1,19 @@
-import { AppId, REGISTERED_APPS } from '../../config/apps';
 import { Button } from '../components/button';
 
 export const RegisterPage = ({
 	appId,
+	appName,
 	redirect,
 	csrfToken,
 	error,
 }: {
-	appId: AppId;
+	appId: string;
+	appName: string;
 	redirect: string;
 	csrfToken: string;
 	error?: string;
 }) => {
 	const qs = new URLSearchParams({ app_id: appId, redirect }).toString();
-	const appInfo = REGISTERED_APPS[appId];
-	const appName = appInfo ? appInfo.name : 'Derbent';
 
 	return (
 		<div className="px-4 py-8 sm:px-8">

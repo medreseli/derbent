@@ -1,4 +1,3 @@
-import { AppId } from '../../config/apps';
 import { Button } from '../components/button';
 
 export const MagicLinkPage = ({
@@ -8,7 +7,7 @@ export const MagicLinkPage = ({
 	error,
 	success,
 }: {
-	appId: AppId;
+	appId: string;
 	redirect: string;
 	csrfToken: string;
 	error?: string;
@@ -18,7 +17,7 @@ export const MagicLinkPage = ({
 
 	if (success) {
 		return (
-			<div className="px-4 text-center sm:px-12">
+			<div className="px-4 py-8 text-center sm:px-12">
 				<p className="mb-8 text-sm text-zinc-600">If an account exists, we've sent a magic link to your inbox.</p>
 				<Button href={`/login?${qs}`} variant="secondary" className="w-full justify-center">
 					Return to login

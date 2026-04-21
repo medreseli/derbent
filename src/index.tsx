@@ -19,6 +19,7 @@ import { EmailQueueMessage } from './types/queue';
 import { adminAuth } from './middleware/admin.middleware';
 import { AdminHandler } from './handlers/admin.handler';
 import { AdminService } from './services/admin.service';
+import { AppRepository } from './repositories/app.repository';
 
 const app = new Hono<HonoEnv>();
 
@@ -36,6 +37,9 @@ app.use('*', async (c, next) => {
 	const auditLogRepo = new AuditLogRepository(c.env.DB);
 	const loginAttemptRepo = new LoginAttemptRepository(c.env.KV);
 
+	const appRepo = new AppRepository(c.env.DB);
+	c.set('appRepo', appRepo);
+
 	const isDev = c.env.APP_ENV === 'development';
 
 	// Bypass the queue in local development for immediate execution and error visibility
@@ -49,6 +53,7 @@ app.use('*', async (c, next) => {
 		sessionRepo,
 		tokenRepo,
 		userTokenVersionRepo,
+		appRepo,
 		emailService,
 		auditLogRepo,
 		loginAttemptRepo,
@@ -57,7 +62,7 @@ app.use('*', async (c, next) => {
 	c.set('authService', authService);
 
 	// Initialize AdminService and attach to context
-	const adminService = new AdminService(userRepo, auditLogRepo, userTokenVersionRepo, hashIterations);
+	const adminService = new AdminService(userRepo, auditLogRepo, userTokenVersionRepo, appRepo, hashIterations);
 	c.set('adminService', adminService);
 
 	await next();
@@ -115,6 +120,13 @@ const adminRoutes = new Hono<HonoEnv>();
 adminRoutes.use('*', adminAuth());
 
 adminRoutes.get('/stats', AdminHandler.getStats);
+
+// App Routes
+adminRoutes.get('/apps', AdminHandler.getApps);
+adminRoutes.get('/apps/:id', AdminHandler.getApp);
+adminRoutes.post('/apps', AdminHandler.createApp);
+adminRoutes.patch('/apps/:id', AdminHandler.updateApp);
+adminRoutes.delete('/apps/:id', AdminHandler.deleteApp);
 
 adminRoutes.get('/users', AdminHandler.getUsers);
 adminRoutes.get('/users/:id', AdminHandler.getUser);

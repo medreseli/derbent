@@ -1,7 +1,6 @@
 import { Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import * as v from 'valibot';
-import { AppId, REGISTERED_APPS } from '../config/apps';
 import { AppError } from '../types/errors';
 import { HonoEnv } from '../types/hono-env';
 import { Session } from '../types/session';
@@ -28,20 +27,28 @@ import { TwoFactorManagePage, TwoFactorSetupPage } from '../ui/pages/two-factor'
 import { TwoFactorVerifyPage } from '../ui/pages/two-factor-verify';
 import { VerifyPendingPage } from '../ui/pages/verify-pending';
 
-function getParams(c: Context): { redirect: string; appId: AppId } {
+async function getResolvedApp(c: Context<HonoEnv>): Promise<{ appId: string; appName: string; redirect: string }> {
 	const parsed = v.safeParse(QuerySchema, {
 		app_id: c.req.query('app_id'),
 		redirect: c.req.query('redirect'),
 	});
 
-	if (parsed.success) {
-		return {
-			appId: parsed.output.app_id as AppId,
-			redirect: parsed.output.redirect ?? '/',
-		};
+	const targetId = parsed.success && parsed.output.app_id ? parsed.output.app_id : 'sso';
+	const redirect = parsed.success && parsed.output.redirect ? parsed.output.redirect : '/';
+
+	const appRepo = c.get('appRepo');
+	let appRecord = await appRepo.findById(targetId);
+
+	// Fallback to SSO if an invalid app_id is provided
+	if (!appRecord) {
+		appRecord = await appRepo.findById('sso');
 	}
 
-	return { redirect: '/', appId: 'sso' };
+	return {
+		appId: appRecord!.id,
+		appName: appRecord!.name,
+		redirect,
+	};
 }
 
 function getClientInfo(c: Context) {
@@ -52,19 +59,17 @@ function getClientInfo(c: Context) {
 }
 
 export class AuthHandler {
-	/**
-	 * Resolves conflicting session states depending on the app being logged into.
-	 */
 	static async clearConflictingSessions(c: Context<HonoEnv>, newlyLoggedInApp: string) {
 		const authService = c.get('authService');
+		const appRepo = c.get('appRepo');
 		const cookieOpts = getCookieOptions(c);
 
 		if (newlyLoggedInApp === 'sso') {
-			// 1. If logging into global SSO: Wipe all individual app sessions (hodan, namedar, etc.)
-			for (const appKey of Object.keys(REGISTERED_APPS)) {
-				if (appKey === 'sso') continue;
+			const allApps = await appRepo.findAll();
+			for (const app of allApps) {
+				if (app.id === 'sso') continue;
 
-				const cookieName = `session_${appKey}`;
+				const cookieName = `session_${app.id}`;
 				const existingSessionId = getCookie(c, cookieName);
 
 				if (existingSessionId) {
@@ -75,8 +80,6 @@ export class AuthHandler {
 				}
 			}
 		} else {
-			// 2. If logging into a specific app (e.g., 'hodan'):
-			// Wipe the global SSO session to prevent ambiguity, but LEAVE 'namedar' alone.
 			const ssoSessionId = getCookie(c, 'session_sso');
 			if (ssoSessionId) {
 				try {
@@ -85,26 +88,26 @@ export class AuthHandler {
 				deleteCookie(c, 'session_sso', cookieOpts);
 			}
 
-			// 3. Clean up the old session for this specific app if it already exists (preventing orphan KV records).
 			const currentAppSessionId = getCookie(c, `session_${newlyLoggedInApp}`);
 			if (currentAppSessionId) {
 				try {
 					await authService.logout(currentAppSessionId);
 				} catch (e) {}
-				// We don't need to delete the cookie here because the handler will immediately overwrite it.
 			}
 		}
 	}
 
 	static async getActiveSession(c: Context<HonoEnv>): Promise<{ session: Session; appId: string } | null> {
 		const authService = c.get('authService');
+		const appRepo = c.get('appRepo');
 		const { ip, userAgent } = getClientInfo(c);
 
-		const explicitAppId = c.req.query('app_id') as AppId | undefined;
+		const explicitAppId = c.req.query('app_id');
+		const allApps = await appRepo.findAll();
 
-		// If an explicit app_id is passed, prioritize checking it first
-		let appsToCheck = Object.keys(REGISTERED_APPS);
-		if (explicitAppId && REGISTERED_APPS[explicitAppId]) {
+		let appsToCheck = allApps.map((a) => a.id);
+
+		if (explicitAppId && appsToCheck.includes(explicitAppId)) {
 			appsToCheck = [explicitAppId, ...appsToCheck.filter((id) => id !== explicitAppId)];
 		}
 
@@ -126,13 +129,16 @@ export class AuthHandler {
 
 	static async index(c: Context<HonoEnv>) {
 		const authService = c.get('authService');
+		const appRepo = c.get('appRepo');
 		const csrfToken = c.get('csrfToken');
 		const { ip, userAgent } = getClientInfo(c);
 
+		const allApps = await appRepo.findAll();
 		const appStatuses: AppStatus[] = [];
 		let hasAnySession = false;
 
-		for (const [appId, appConfig] of Object.entries(REGISTERED_APPS)) {
+		for (const appConfig of allApps) {
+			const appId = appConfig.id;
 			let sessionId = getCookie(c, `session_${appId}`);
 			let isSsoFallback = false;
 
@@ -151,14 +157,14 @@ export class AuthHandler {
 				}
 			}
 
-			const appUrl = c.env.APP_ENV === 'development' ? appConfig.devUrl : appConfig.prodUrl;
+			const appUrl = c.env.APP_ENV === 'development' ? appConfig.dev_url : appConfig.prod_url;
 
 			appStatuses.push({
 				config: {
 					id: appConfig.id,
 					name: appConfig.name,
-					description: appConfig.description,
-					icon: appConfig.icon,
+					description: appConfig.description || '',
+					icon: appConfig.icon || null,
 					url: appUrl,
 				},
 				session,
@@ -176,7 +182,7 @@ export class AuthHandler {
 
 	static async renderLogin(c: Context<HonoEnv>) {
 		const csrfToken = c.get('csrfToken');
-		const { appId, redirect } = getParams(c);
+		const { appId, appName, redirect } = await getResolvedApp(c);
 		const githubClientId = c.env.GITHUB_CLIENT_ID;
 		const googleClientId = c.env.GOOGLE_CLIENT_ID;
 		const errorParam = c.req.query('error');
@@ -190,6 +196,7 @@ export class AuthHandler {
 		return c.render(
 			<LoginPage
 				appId={appId}
+				appName={appName}
 				redirect={redirect}
 				csrfToken={csrfToken}
 				error={errorMsg}
@@ -201,18 +208,18 @@ export class AuthHandler {
 
 	static async renderRegister(c: Context<HonoEnv>) {
 		const csrfToken = c.get('csrfToken');
-		const { appId, redirect } = getParams(c);
-		return c.render(<RegisterPage appId={appId} redirect={redirect} csrfToken={csrfToken} />);
+		const { appId, appName, redirect } = await getResolvedApp(c);
+		return c.render(<RegisterPage appId={appId} appName={appName} redirect={redirect} csrfToken={csrfToken} />);
 	}
 
 	static async renderVerifyPending(c: Context<HonoEnv>) {
-		const { appId, redirect } = getParams(c);
+		const { appId, redirect } = await getResolvedApp(c);
 		return c.render(<VerifyPendingPage appId={appId} redirect={redirect} />);
 	}
 
 	static async handleLogin(c: Context<HonoEnv>) {
 		const logger = c.get('logger');
-		const { appId, redirect } = getParams(c);
+		const { appId, appName, redirect } = await getResolvedApp(c);
 		const authService = c.get('authService');
 		const { ip, userAgent } = getClientInfo(c);
 
@@ -224,6 +231,7 @@ export class AuthHandler {
 			return c.render(
 				<LoginPage
 					appId={appId}
+					appName={appName}
 					redirect={redirect}
 					csrfToken={c.get('csrfToken')}
 					error={result.issues[0].message}
@@ -266,6 +274,7 @@ export class AuthHandler {
 			return c.render(
 				<LoginPage
 					appId={appId}
+					appName={appName}
 					redirect={redirect}
 					csrfToken={c.get('csrfToken')}
 					error={msg}
@@ -277,7 +286,7 @@ export class AuthHandler {
 	}
 
 	static async handleRegister(c: Context<HonoEnv>) {
-		const { appId, redirect } = getParams(c);
+		const { appId, appName, redirect } = await getResolvedApp(c);
 		const authService = c.get('authService');
 		const { ip, userAgent } = getClientInfo(c);
 
@@ -285,7 +294,15 @@ export class AuthHandler {
 		const result = v.safeParse(RegisterSchema, formData);
 
 		if (!result.success) {
-			return c.render(<RegisterPage appId={appId} redirect={redirect} csrfToken={c.get('csrfToken')} error={result.issues[0].message} />);
+			return c.render(
+				<RegisterPage
+					appId={appId}
+					appName={appName}
+					redirect={redirect}
+					csrfToken={c.get('csrfToken')}
+					error={result.issues[0].message}
+				/>,
+			);
 		}
 
 		try {
@@ -296,18 +313,24 @@ export class AuthHandler {
 			let msg = 'An unexpected system error occurred. Please try again later.';
 			if (err instanceof AppError) msg = err.message;
 
-			return c.render(<RegisterPage appId={appId} redirect={redirect} csrfToken={c.get('csrfToken')} error={msg} />);
+			return c.render(<RegisterPage appId={appId} appName={appName} redirect={redirect} csrfToken={c.get('csrfToken')} error={msg} />);
 		}
 	}
 
 	static async handleVerifyEmail(c: Context<HonoEnv>) {
 		const token = c.req.query('token');
-		const { appId, redirect } = getParams(c);
+		const { appId, appName, redirect } = await getResolvedApp(c);
 		const { ip, userAgent } = getClientInfo(c);
 
 		if (!token) {
 			return c.render(
-				<LoginPage appId={appId} redirect={redirect} csrfToken={c.get('csrfToken')} error="No verification token provided." />,
+				<LoginPage
+					appId={appId}
+					appName={appName}
+					redirect={redirect}
+					csrfToken={c.get('csrfToken')}
+					error="No verification token provided."
+				/>,
 			);
 		}
 
@@ -316,16 +339,22 @@ export class AuthHandler {
 		try {
 			await authService.verifyEmailToken(token, ip, userAgent);
 			return c.render(
-				<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} success="Email verified successfully! You can now log in." />,
+				<LoginPage
+					appId={appId}
+					appName={appName}
+					redirect={redirect}
+					csrfToken={csrfToken}
+					success="Email verified successfully! You can now log in."
+				/>,
 			);
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
-			return c.render(<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} error={msg} />);
+			return c.render(<LoginPage appId={appId} appName={appName} redirect={redirect} csrfToken={csrfToken} error={msg} />);
 		}
 	}
 
 	static async handleLogout(c: Context<HonoEnv>) {
-		const { appId, redirect } = getParams(c);
+		const { appId, redirect } = await getResolvedApp(c);
 		const authService = c.get('authService');
 		const cookieOptions = getCookieOptions(c);
 
@@ -348,7 +377,7 @@ export class AuthHandler {
 	}
 
 	static async handleLogoutAll(c: Context<HonoEnv>) {
-		const { appId, redirect } = getParams(c);
+		const { appId, redirect } = await getResolvedApp(c);
 		const authService = c.get('authService');
 		const { ip, userAgent } = getClientInfo(c);
 
@@ -373,19 +402,21 @@ export class AuthHandler {
 	}
 
 	static async handleLogoutAllByEmail(c: Context<HonoEnv>) {
-		const { redirect } = getParams(c);
+		const { redirect } = await getResolvedApp(c);
 		const authService = c.get('authService');
+		const appRepo = c.get('appRepo');
 		const { ip, userAgent } = getClientInfo(c);
 
 		let targetEmail: string | null = null;
+		const allApps = await appRepo.findAll();
 
-		for (const appKey of Object.keys(REGISTERED_APPS)) {
-			const cookieName = `session_${appKey}`;
+		for (const app of allApps) {
+			const cookieName = `session_${app.id}`;
 			const cookieVal = getCookie(c, cookieName);
 
 			if (cookieVal) {
 				try {
-					const session = await authService.verifySession(cookieVal, appKey);
+					const session = await authService.verifySession(cookieVal, app.id);
 					targetEmail = session.email;
 					break;
 				} catch (e) {}
@@ -401,8 +432,8 @@ export class AuthHandler {
 		const cookieOptions = getCookieOptions(c);
 		deleteCookie(c, 'csrf_token', getCookieOptions(c));
 
-		for (const appKey of Object.keys(REGISTERED_APPS)) {
-			deleteCookie(c, `session_${appKey}`, cookieOptions);
+		for (const app of allApps) {
+			deleteCookie(c, `session_${app.id}`, cookieOptions);
 		}
 
 		return c.redirect(redirect);
@@ -410,14 +441,14 @@ export class AuthHandler {
 
 	static async renderForgot(c: Context<HonoEnv>) {
 		const csrfToken = c.get('csrfToken');
-		const { appId, redirect } = getParams(c);
+		const { appId, redirect } = await getResolvedApp(c);
 		return c.render(<ForgotPasswordPage csrfToken={csrfToken} appId={appId} redirect={redirect} />);
 	}
 
 	static async handleForgot(c: Context<HonoEnv>) {
 		const formData = await c.req.parseBody();
 		const { ip, userAgent } = getClientInfo(c);
-		const { appId, redirect } = getParams(c);
+		const { appId, redirect } = await getResolvedApp(c);
 		const result = v.safeParse(ForgotPasswordSchema, formData);
 
 		if (result.success) {
@@ -448,9 +479,7 @@ export class AuthHandler {
 
 		try {
 			const app = await c.get('authService').resetPassword(result.output.token, result.output.password, ip, userAgent);
-			return c.render(
-				<LoginPage appId={app} redirect="/" csrfToken={csrfToken} success="Password reset successful! You can now log in." />,
-			);
+			return c.redirect(`/login?app_id=${app}&success=Password reset successful! You can now log in.`);
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
 			return c.render(<ResetPasswordPage token={result.output.token} csrfToken={csrfToken} error={msg} />);
@@ -483,13 +512,12 @@ export class AuthHandler {
 
 			const cookieOptions = getCookieOptions(c);
 			deleteCookie(c, 'csrf_token', cookieOptions);
-			for (const appKey of Object.keys(REGISTERED_APPS)) {
-				deleteCookie(c, `session_${appKey}`, cookieOptions);
+			const allApps = await c.get('appRepo').findAll();
+			for (const app of allApps) {
+				deleteCookie(c, `session_${app.id}`, cookieOptions);
 			}
 
-			return c.render(
-				<LoginPage appId="sso" redirect="/" csrfToken={c.get('csrfToken')} success="Password changed successfully. Please log in again." />,
-			);
+			return c.redirect('/login?app_id=sso&redirect=/&success=Password changed successfully. Please log in again.');
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'An unexpected error occurred.';
 			return c.render(<ChangePasswordPage csrfToken={c.get('csrfToken')} error={msg} />);
@@ -498,12 +526,12 @@ export class AuthHandler {
 
 	static async renderMagicLink(c: Context<HonoEnv>) {
 		const csrfToken = c.get('csrfToken');
-		const { appId, redirect } = getParams(c);
+		const { appId, redirect } = await getResolvedApp(c);
 		return c.render(<MagicLinkPage appId={appId} redirect={redirect} csrfToken={csrfToken} />);
 	}
 
 	static async handleMagicLinkRequest(c: Context<HonoEnv>) {
-		const { appId, redirect } = getParams(c);
+		const { appId, redirect } = await getResolvedApp(c);
 		const csrfToken = c.get('csrfToken');
 		const { ip, userAgent } = getClientInfo(c);
 
@@ -523,13 +551,15 @@ export class AuthHandler {
 
 	static async handleVerifyMagicLink(c: Context<HonoEnv>) {
 		const token = c.req.query('token');
-		const { appId, redirect } = getParams(c);
+		const { appId, appName, redirect } = await getResolvedApp(c);
 		const authService = c.get('authService');
 		const csrfToken = c.get('csrfToken');
 		const { ip, userAgent } = getClientInfo(c);
 
 		if (!token) {
-			return c.render(<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} error="No magic link token provided." />);
+			return c.render(
+				<LoginPage appId={appId} appName={appName} redirect={redirect} csrfToken={csrfToken} error="No magic link token provided." />,
+			);
 		}
 
 		try {
@@ -550,12 +580,12 @@ export class AuthHandler {
 			return c.redirect(redirect);
 		} catch (err) {
 			const msg = err instanceof AppError ? err.message : 'An unexpected system error occurred. Please try again later.';
-			return c.render(<LoginPage appId={appId} redirect={redirect} csrfToken={csrfToken} error={msg} />);
+			return c.render(<LoginPage appId={appId} appName={appName} redirect={redirect} csrfToken={csrfToken} error={msg} />);
 		}
 	}
 
 	static async handleGitHubLogin(c: Context<HonoEnv>) {
-		const { appId, redirect } = getParams(c);
+		const { appId, redirect } = await getResolvedApp(c);
 
 		if (!c.env.GITHUB_CLIENT_ID) {
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_not_configured' }).toString();
@@ -649,7 +679,7 @@ export class AuthHandler {
 	}
 
 	static async handleGoogleLogin(c: Context<HonoEnv>) {
-		const { appId, redirect } = getParams(c);
+		const { appId, redirect } = await getResolvedApp(c);
 
 		if (!c.env.GOOGLE_CLIENT_ID) {
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'google_not_configured' }).toString();
@@ -801,11 +831,11 @@ export class AuthHandler {
 
 	static async render2FAVerify(c: Context<HonoEnv>) {
 		const token = c.req.query('token');
-		const { appId, redirect } = getParams(c);
+		const { appId, appName, redirect } = await getResolvedApp(c);
 		if (!token) return c.redirect(`/login?app_id=${appId}&redirect=${encodeURIComponent(redirect)}`);
 
 		return c.render(
-			<TwoFactorVerifyPage appName={c.env.APP_NAME} token={token} appId={appId} redirect={redirect} csrfToken={c.get('csrfToken')} />,
+			<TwoFactorVerifyPage appName={appName} token={token} appId={appId} redirect={redirect} csrfToken={c.get('csrfToken')} />,
 		);
 	}
 
@@ -813,13 +843,13 @@ export class AuthHandler {
 		const formData = await c.req.parseBody();
 		const token = formData['token'] as string;
 		const code = formData['code'] as string;
-		const { appId, redirect } = getParams(c);
+		const { appId, appName, redirect } = await getResolvedApp(c);
 		const { ip, userAgent } = getClientInfo(c);
 
 		if (!token || !code) {
 			return c.render(
 				<TwoFactorVerifyPage
-					appName={c.env.APP_NAME}
+					appName={appName}
 					token={token}
 					appId={appId}
 					redirect={redirect}
@@ -845,7 +875,7 @@ export class AuthHandler {
 			const msg = err instanceof AppError ? err.message : 'Invalid code.';
 			return c.render(
 				<TwoFactorVerifyPage
-					appName={c.env.APP_NAME}
+					appName={appName}
 					token={token}
 					appId={appId}
 					redirect={redirect}

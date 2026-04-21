@@ -1,4 +1,3 @@
-import { AppId } from '../../config/apps';
 import { Session } from '../../types/session';
 import { ActionMenu } from '../components/action-menu';
 import { AppIcon } from '../components/app-icon';
@@ -6,10 +5,10 @@ import { Button } from '../components/button';
 import { ExternalLinkIcon, LogInIcon } from '../helpers/icons';
 
 export interface AppViewConfig {
-	id: AppId;
+	id: string;
 	name: string;
 	description: string;
-	icon: string;
+	icon: string | null;
 	url: string;
 }
 
@@ -46,7 +45,7 @@ const AppListRow = ({
 						isLoggedIn ? 'border-emerald-500/30 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-zinc-300 bg-zinc-100'
 					}`}
 				>
-					<AppIcon appId={app.config.id} className={`size-8 ${isLoggedIn ? 'text-emerald-700' : 'text-zinc-800'}`} />
+					<AppIcon iconSvg={app.config.icon} className={`size-8 ${isLoggedIn ? 'text-emerald-700' : 'text-zinc-800'}`} />
 					{isLoggedIn && (
 						<span className="absolute -top-1 -right-1 flex h-3 w-3">
 							<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
