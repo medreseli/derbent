@@ -3,11 +3,11 @@ import { HonoEnv } from '../types/hono-env';
 
 export const adminAuth = (): MiddlewareHandler<HonoEnv> => {
 	return async (c, next) => {
-		const secret = c.env.ADMIN_SECRET;
+		const secret = c.env.DERBENT_API_KEY;
 
 		if (!secret) {
 			const logger = c.get('logger');
-			logger.error('[ADMIN API] Missing ADMIN_SECRET in environment variables.');
+			logger.error('[ADMIN API] Missing DERBENT_API_KEY in environment variables.');
 			return c.json({ error: 'Admin API is not configured on this instance.' }, 500);
 		}
 

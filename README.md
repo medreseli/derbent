@@ -227,7 +227,7 @@ Destroys the current active session.
 
 ## Admin Dashboard API
 
-Derbent exposes privileged endpoints to manage users and system security. These endpoints must be accessed with an `Authorization: Bearer <ADMIN_SECRET>` header.
+Derbent exposes privileged endpoints to manage users and system security. These endpoints must be accessed with an `Authorization: Bearer <DERBENT_API_KEY>` header.
 
 ### Users Management
 
@@ -251,13 +251,13 @@ openssl rand -hex 32
 #### For Local Development
 
 ```
-ADMIN_SECRET=your_generated_hex_string_here
+DERBENT_API_KEY=your_generated_hex_string_here
 ```
 
 #### For Production
 
 ```bash
-npx wrangler secret put ADMIN_SECRET
+npx wrangler secret put DERBENT_API_KEY
 ```
 
 ## Testing

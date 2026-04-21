@@ -56,7 +56,7 @@
 			"RESEND_API_KEY": {
 				"description": "Your Resend API Key (Secret)."
 			},
-			"ADMIN_SECRET": {
+			"DERBENT_API_KEY": {
 				"description": "(Optional) Secret key used to authorize API requests from your Admin Dashboard."
 			},
 			"GITHUB_CLIENT_ID": {

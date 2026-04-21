@@ -8,7 +8,7 @@ All requests to the Admin API are protected and must be authenticated. How your 
 
 ### 1.1 Requirements
 
-- **Authentication:** Every request **MUST** include an `Authorization: Bearer <ADMIN_SECRET>` header.
+- **Authentication:** Every request **MUST** include an `Authorization: Bearer <DERBENT_API_KEY>` header.
 - **Production Routing:** Use Cloudflare Workers **Service Bindings** (`c.env.<BINDING_NAME>.fetch(req)`).
 - **Local Development Routing:** Service Bindings do not easily bridge across separate local `wrangler dev` processes. For local development, send standard HTTP requests directly to Derbent running on `http://localhost:7777/admin`.
 
@@ -24,7 +24,7 @@ async function fetchDerbentAdmin(c: Context, method: string, path: string, body?
 	const req = new Request(url, {
 		method,
 		headers: {
-			Authorization: `Bearer ${c.env.ADMIN_SECRET}`,
+			Authorization: `Bearer ${c.env.DERBENT_API_KEY}`,
 			'Content-Type': 'application/json',
 		},
 		body: body ? JSON.stringify(body) : undefined,

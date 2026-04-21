@@ -1,4 +1,4 @@
-import { hashPassword, verifyPassword } from '../utils/crypto';
+import { hashPassword, verifyPassword, needsRehash } from '../utils/crypto';
 import { Session } from '../types/session';
 import { SessionRepository } from '../repositories/session.repository';
 import { UserRepository } from '../repositories/user.repository';
@@ -29,7 +29,7 @@ export class AuthService {
 	private async verifyPasswordSafe(password: string, user: User | null): Promise<boolean> {
 		const dummySalt = 'U29tZVJhbmRvbVNhbHQ=';
 		const dummyHashPart = 'U29tZVJhbmRvbUhhc2g=';
-		const dummyHash = `${this.hashIterations}:${dummySalt}:${dummyHashPart}`;
+		const dummyHash = `pbkdf2_sha256:${this.hashIterations}:${dummySalt}:${dummyHashPart}`;
 		const isRealUserWithPassword = !!user && !user.phash.startsWith('OAUTH:');
 		const targetHash = isRealUserWithPassword ? (user as User).phash : dummyHash;
 		const isMatch = await verifyPassword(password, targetHash);
@@ -126,6 +126,16 @@ export class AuthService {
 
 		if (user.email_verified === 0) {
 			throw new AppError('EMAIL_NOT_VERIFIED', 403);
+		}
+
+		// --- Transparent Hash Upgrading ---
+		if (!user.phash.startsWith('OAUTH:') && needsRehash(user.phash, this.hashIterations)) {
+			try {
+				const newHash = await hashPassword(password, this.hashIterations);
+				await this.userRepo.updatePasswordHash(user.id, newHash);
+			} catch (e) {
+				console.error('[AuthService] Failed to upgrade password hash:', e);
+			}
 		}
 
 		await this.loginAttemptRepo.clearAttempts(email);

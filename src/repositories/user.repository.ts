@@ -73,6 +73,12 @@ export class UserRepository {
 			.run();
 	}
 
+	async updatePasswordHash(userId: string, phash: string): Promise<void> {
+		// Unlike updatePassword, this silently updates the hash without bumping the token_version
+		// so active sessions are not disrupted by the transparent upgrade.
+		await this.db.prepare('UPDATE users SET phash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(phash, userId).run();
+	}
+
 	async incrementTokenVersion(userId: string): Promise<number> {
 		const result = await this.db
 			.prepare('UPDATE users SET token_version = token_version + 1 WHERE id = ? RETURNING token_version')
