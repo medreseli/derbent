@@ -80,5 +80,7 @@ export const AdminCreateAppSchema = v.object({
 	allow_logins: v.union([v.literal(0), v.literal(1)]),
 });
 
-// v.partial makes all properties optional for PATCH requests
 export const AdminUpdateAppSchema = v.partial(AdminCreateAppSchema);
+
+// Admin Settings Schema
+export const AdminUpdateSettingsSchema = v.record(v.string(), v.any());

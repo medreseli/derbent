@@ -119,9 +119,7 @@ export class AuthHandler {
 				try {
 					const session = await authService.verifySession(cookieVal, appKey, ip, userAgent);
 					return { session, appId: appKey };
-				} catch (e) {
-					// continue checking others
-				}
+				} catch (e) {}
 			}
 		}
 		return null;
@@ -130,6 +128,7 @@ export class AuthHandler {
 	static async index(c: Context<HonoEnv>) {
 		const authService = c.get('authService');
 		const appRepo = c.get('appRepo');
+		const config = c.get('config');
 		const csrfToken = c.get('csrfToken');
 		const { ip, userAgent } = getClientInfo(c);
 
@@ -157,7 +156,7 @@ export class AuthHandler {
 				}
 			}
 
-			const appUrl = c.env.APP_ENV === 'development' ? appConfig.dev_url : appConfig.prod_url;
+			const appUrl = config.APP_ENV === 'development' ? appConfig.dev_url : appConfig.prod_url;
 
 			appStatuses.push({
 				config: {
@@ -182,9 +181,10 @@ export class AuthHandler {
 
 	static async renderLogin(c: Context<HonoEnv>) {
 		const csrfToken = c.get('csrfToken');
+		const config = c.get('config');
 		const { appId, appName, redirect } = await getResolvedApp(c);
-		const githubClientId = c.env.GITHUB_CLIENT_ID;
-		const googleClientId = c.env.GOOGLE_CLIENT_ID;
+		const githubClientId = config.GITHUB_CLIENT_ID;
+		const googleClientId = config.GOOGLE_CLIENT_ID;
 		const errorParam = c.req.query('error');
 
 		let errorMsg = undefined;
@@ -219,6 +219,7 @@ export class AuthHandler {
 
 	static async handleLogin(c: Context<HonoEnv>) {
 		const logger = c.get('logger');
+		const config = c.get('config');
 		const { appId, appName, redirect } = await getResolvedApp(c);
 		const authService = c.get('authService');
 		const { ip, userAgent } = getClientInfo(c);
@@ -235,8 +236,8 @@ export class AuthHandler {
 					redirect={redirect}
 					csrfToken={c.get('csrfToken')}
 					error={result.issues[0].message}
-					githubClientId={c.env.GITHUB_CLIENT_ID}
-					googleClientId={c.env.GOOGLE_CLIENT_ID}
+					githubClientId={config.GITHUB_CLIENT_ID}
+					googleClientId={config.GOOGLE_CLIENT_ID}
 				/>,
 			);
 		}
@@ -278,8 +279,8 @@ export class AuthHandler {
 					redirect={redirect}
 					csrfToken={c.get('csrfToken')}
 					error={msg}
-					githubClientId={c.env.GITHUB_CLIENT_ID}
-					googleClientId={c.env.GOOGLE_CLIENT_ID}
+					githubClientId={config.GITHUB_CLIENT_ID}
+					googleClientId={config.GOOGLE_CLIENT_ID}
 				/>,
 			);
 		}
@@ -585,9 +586,10 @@ export class AuthHandler {
 	}
 
 	static async handleGitHubLogin(c: Context<HonoEnv>) {
+		const config = c.get('config');
 		const { appId, redirect } = await getResolvedApp(c);
 
-		if (!c.env.GITHUB_CLIENT_ID) {
+		if (!config.GITHUB_CLIENT_ID) {
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_not_configured' }).toString();
 			return c.redirect(`/login?${qs}`);
 		}
@@ -598,11 +600,12 @@ export class AuthHandler {
 		setCookie(c, 'github_oauth_state', nonce, cookieOpts);
 
 		const state = btoa(JSON.stringify({ appId, redirect, nonce }));
-		const githubUrl = `https://github.com/login/oauth/authorize?client_id=${c.env.GITHUB_CLIENT_ID}&scope=user:email&state=${state}`;
+		const githubUrl = `https://github.com/login/oauth/authorize?client_id=${config.GITHUB_CLIENT_ID}&scope=user:email&state=${state}`;
 		return c.redirect(githubUrl);
 	}
 
 	static async handleGitHubCallback(c: Context<HonoEnv>) {
+		const config = c.get('config');
 		const code = c.req.query('code');
 		const state = c.req.query('state');
 		const { ip, userAgent } = getClientInfo(c);
@@ -621,7 +624,7 @@ export class AuthHandler {
 			} catch (e) {}
 		}
 
-		if (!c.env.GITHUB_CLIENT_ID || !c.env.GITHUB_CLIENT_SECRET) {
+		if (!config.GITHUB_CLIENT_ID || !config.GITHUB_CLIENT_SECRET) {
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'github_not_configured' }).toString();
 			return c.redirect(`/login?${qs}`);
 		}
@@ -642,8 +645,8 @@ export class AuthHandler {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 				body: JSON.stringify({
-					client_id: c.env.GITHUB_CLIENT_ID,
-					client_secret: c.env.GITHUB_CLIENT_SECRET,
+					client_id: config.GITHUB_CLIENT_ID,
+					client_secret: config.GITHUB_CLIENT_SECRET,
 					code,
 				}),
 			});
@@ -679,9 +682,10 @@ export class AuthHandler {
 	}
 
 	static async handleGoogleLogin(c: Context<HonoEnv>) {
+		const config = c.get('config');
 		const { appId, redirect } = await getResolvedApp(c);
 
-		if (!c.env.GOOGLE_CLIENT_ID) {
+		if (!config.GOOGLE_CLIENT_ID) {
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'google_not_configured' }).toString();
 			return c.redirect(`/login?${qs}`);
 		}
@@ -692,13 +696,14 @@ export class AuthHandler {
 		setCookie(c, 'google_oauth_state', nonce, cookieOpts);
 
 		const state = btoa(JSON.stringify({ appId, redirect, nonce }));
-		const redirectUri = `${c.env.BASE_URL}/auth/google/callback`;
-		const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${c.env.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email profile&state=${state}`;
+		const redirectUri = `${config.BASE_URL}/auth/google/callback`;
+		const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email profile&state=${state}`;
 
 		return c.redirect(googleUrl);
 	}
 
 	static async handleGoogleCallback(c: Context<HonoEnv>) {
+		const config = c.get('config');
 		const code = c.req.query('code');
 		const state = c.req.query('state');
 		const { ip, userAgent } = getClientInfo(c);
@@ -717,7 +722,7 @@ export class AuthHandler {
 			} catch (e) {}
 		}
 
-		if (!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET) {
+		if (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET) {
 			const qs = new URLSearchParams({ app_id: appId, redirect, error: 'google_not_configured' }).toString();
 			return c.redirect(`/login?${qs}`);
 		}
@@ -734,13 +739,13 @@ export class AuthHandler {
 		}
 
 		try {
-			const redirectUri = `${c.env.BASE_URL}/auth/google/callback`;
+			const redirectUri = `${config.BASE_URL}/auth/google/callback`;
 			const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 				body: new URLSearchParams({
-					client_id: c.env.GOOGLE_CLIENT_ID,
-					client_secret: c.env.GOOGLE_CLIENT_SECRET,
+					client_id: config.GOOGLE_CLIENT_ID,
+					client_secret: config.GOOGLE_CLIENT_SECRET,
 					code,
 					grant_type: 'authorization_code',
 					redirect_uri: redirectUri,

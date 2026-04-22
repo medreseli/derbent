@@ -6,11 +6,47 @@ import {
 	AdminForcePasswordSchema,
 	AdminLockAccountSchema,
 	AdminUpdateAppSchema,
+	AdminUpdateSettingsSchema,
 	AdminUpdateUserSchema,
 } from '../utils/validation';
 import { AppError } from '../types/errors';
 
 export class AdminHandler {
+	static async getSettings(c: Context<HonoEnv>) {
+		const adminService = c.get('adminService');
+		const effectiveConfig = c.get('config');
+
+		try {
+			const safeConfig = await adminService.getSettings(effectiveConfig);
+			return c.json({ data: safeConfig });
+		} catch (err) {
+			const status = err instanceof AppError ? err.status : 500;
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.json({ error: msg }, status);
+		}
+	}
+
+	static async updateSettings(c: Context<HonoEnv>) {
+		const adminService = c.get('adminService');
+		const masterKey = c.env.DERBENT_API_KEY!;
+
+		try {
+			const body = await c.req.json();
+			const result = v.safeParse(AdminUpdateSettingsSchema, body);
+
+			if (!result.success) {
+				return c.json({ error: 'Validation failed', issues: result.issues }, 400);
+			}
+
+			await adminService.updateSettings(result.output as Record<string, any>, masterKey);
+			return c.json({ success: true });
+		} catch (err) {
+			const status = err instanceof AppError ? err.status : 500;
+			const msg = err instanceof AppError ? err.message : 'Internal Server Error';
+			return c.json({ error: msg }, status);
+		}
+	}
+
 	static async getStats(c: Context<HonoEnv>) {
 		const adminService = c.get('adminService');
 		try {
@@ -35,8 +71,6 @@ export class AdminHandler {
 
 	static async getUser(c: Context<HonoEnv>) {
 		const adminService = c.get('adminService');
-		// Since the router won't even match the endpoint if the ID is missing,
-		// we can safely tell TypeScript that it is definitely a string using "as string"
 		const id = c.req.param('id') as string;
 
 		try {

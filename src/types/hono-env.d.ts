@@ -8,7 +8,8 @@ export type HonoEnv = {
 		adminService: AdminService;
 		authService: AuthService;
 		appRepo: AppRepository;
-		csrfToken: string;
+		config: DerbentConfig;
 		logger: Logger;
+		csrfToken: string;
 	};
 };

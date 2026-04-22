@@ -17,17 +17,25 @@ import { AuditLogRepository } from './repositories/audit-log.repository';
 import { LoginAttemptRepository } from './repositories/login-attempt.repository';
 import { EmailQueueMessage } from './types/queue';
 import { adminAuth } from './middleware/admin.middleware';
+import { configMiddleware } from './middleware/config.middleware';
 import { AdminHandler } from './handlers/admin.handler';
 import { AdminService } from './services/admin.service';
 import { AppRepository } from './repositories/app.repository';
+import { SettingsRepository } from './repositories/settings.repository';
 
 const app = new Hono<HonoEnv>();
 
 app.use('*', secureHeaders());
 app.use('*', renderer);
 
+// 1. Inject the Config Middleware early so other services can consume it
+app.use('*', configMiddleware());
+
+// 2. Initialize Services
 app.use('*', async (c, next) => {
-	const logger = new Logger(c.env.LOG_LEVEL || 'info');
+	const config = c.get('config');
+
+	const logger = new Logger(config.LOG_LEVEL || 'info');
 	c.set('logger', logger);
 
 	const userRepo = new UserRepository(c.env.DB);
@@ -36,17 +44,24 @@ app.use('*', async (c, next) => {
 	const userTokenVersionRepo = new UserTokenVersionRepository(c.env.KV);
 	const auditLogRepo = new AuditLogRepository(c.env.DB);
 	const loginAttemptRepo = new LoginAttemptRepository(c.env.KV);
+	const settingsRepo = new SettingsRepository(c.env.DB, c.env.KV);
 
 	const appRepo = new AppRepository(c.env.DB);
 	c.set('appRepo', appRepo);
 
-	const isDev = c.env.APP_ENV === 'development';
+	const isDev = config.APP_ENV === 'development';
 
-	// Bypass the queue in local development for immediate execution and error visibility
 	const activeQueue = isDev ? undefined : c.env.EMAIL_QUEUE;
-	const emailService = new EmailService(isDev, c.env.APP_NAME, c.env.BASE_URL, c.env.RESEND_API_KEY, c.env.RESEND_DOMAIN, activeQueue);
+	const emailService = new EmailService(
+		isDev,
+		config.APP_NAME,
+		config.BASE_URL,
+		config.RESEND_API_KEY || '',
+		config.RESEND_DOMAIN || '',
+		activeQueue,
+	);
 
-	const hashIterations = parseInt(c.env.PBKDF2_ITERATIONS || '100000', 10);
+	const hashIterations = parseInt(config.PBKDF2_ITERATIONS || '100000', 10);
 
 	const authService = new AuthService(
 		userRepo,
@@ -61,8 +76,7 @@ app.use('*', async (c, next) => {
 	);
 	c.set('authService', authService);
 
-	// Initialize AdminService and attach to context
-	const adminService = new AdminService(userRepo, auditLogRepo, userTokenVersionRepo, appRepo, hashIterations);
+	const adminService = new AdminService(userRepo, auditLogRepo, userTokenVersionRepo, appRepo, settingsRepo, hashIterations);
 	c.set('adminService', adminService);
 
 	await next();
@@ -121,7 +135,9 @@ adminRoutes.use('*', adminAuth());
 
 adminRoutes.get('/stats', AdminHandler.getStats);
 
-// App Routes
+adminRoutes.get('/settings', AdminHandler.getSettings);
+adminRoutes.patch('/settings', AdminHandler.updateSettings);
+
 adminRoutes.get('/apps', AdminHandler.getApps);
 adminRoutes.get('/apps/:id', AdminHandler.getApp);
 adminRoutes.post('/apps', AdminHandler.createApp);
@@ -138,7 +154,6 @@ adminRoutes.delete('/users/:id', AdminHandler.deleteUser);
 adminRoutes.delete('/users/:id/sessions', AdminHandler.revokeSessions);
 adminRoutes.post('/users/:id/lock', AdminHandler.lockAccount);
 
-// Audit Logs
 adminRoutes.get('/audit-logs', AdminHandler.getAuditLogs);
 adminRoutes.get('/users/:id/audit-logs', AdminHandler.getUserAuditLogs);
 
@@ -149,28 +164,58 @@ export default {
 
 	// Cloudflare Cron Trigger Handler
 	async scheduled(controller: ScheduledController, env: HonoEnv['Bindings'], ctx: ExecutionContext) {
-		const logger = new Logger(env.LOG_LEVEL || 'info');
+		let retentionDays = parseInt(env.AUDIT_LOG_RETENTION_DAYS || '30', 10);
+		let logLevel = env.LOG_LEVEL || 'info';
+
+		if (env.USE_DYNAMIC_CONFIG === 'true' && env.DERBENT_API_KEY) {
+			const settingsRepo = new SettingsRepository(env.DB, env.KV);
+			const dynamic = await settingsRepo.getCachedConfig(env.DERBENT_API_KEY);
+			if (dynamic) {
+				if (dynamic.AUDIT_LOG_RETENTION_DAYS) retentionDays = parseInt(dynamic.AUDIT_LOG_RETENTION_DAYS, 10);
+				if (dynamic.LOG_LEVEL) logLevel = dynamic.LOG_LEVEL;
+			}
+		}
+
+		const logger = new Logger(logLevel);
 		logger.info(`[CRON] Event triggered: ${controller.cron}`);
 
 		const auditLogRepo = new AuditLogRepository(env.DB);
 
-		const retentionDays = parseInt(env.AUDIT_LOG_RETENTION_DAYS || '30', 10) || 30;
-
 		ctx.waitUntil(
 			(async () => {
 				const deletedCount = await auditLogRepo.prune(retentionDays);
-				logger.info(`[CRON] Pruned ${deletedCount} audit logs older than 30 days.`);
+				logger.info(`[CRON] Pruned ${deletedCount} audit logs older than ${retentionDays} days.`);
 			})(),
 		);
 	},
 
 	// Cloudflare Queue Consumer Handler
 	async queue(batch: MessageBatch<EmailQueueMessage>, env: HonoEnv['Bindings'], ctx: ExecutionContext) {
-		const logger = new Logger(env.LOG_LEVEL || 'info');
+		let appName = env.APP_NAME || 'Derbent';
+		let baseUrl = env.BASE_URL;
+		let resendApi = env.RESEND_API_KEY || '';
+		let resendDomain = env.RESEND_DOMAIN || '';
+		let logLevel = env.LOG_LEVEL || 'info';
+		let appEnv = env.APP_ENV || 'production';
+
+		if (env.USE_DYNAMIC_CONFIG === 'true' && env.DERBENT_API_KEY) {
+			const settingsRepo = new SettingsRepository(env.DB, env.KV);
+			const dynamic = await settingsRepo.getCachedConfig(env.DERBENT_API_KEY);
+			if (dynamic) {
+				if (dynamic.APP_NAME) appName = dynamic.APP_NAME;
+				if (dynamic.BASE_URL) baseUrl = dynamic.BASE_URL;
+				if (dynamic.RESEND_API_KEY) resendApi = dynamic.RESEND_API_KEY;
+				if (dynamic.RESEND_DOMAIN) resendDomain = dynamic.RESEND_DOMAIN;
+				if (dynamic.LOG_LEVEL) logLevel = dynamic.LOG_LEVEL;
+				if (dynamic.APP_ENV) appEnv = dynamic.APP_ENV;
+			}
+		}
+
+		const logger = new Logger(logLevel);
 		logger.info(`[QUEUE] Processing batch of ${batch.messages.length} messages`);
 
-		const isDev = env.APP_ENV === 'development';
-		const emailService = new EmailService(isDev, env.APP_NAME, env.BASE_URL, env.RESEND_API_KEY, env.RESEND_DOMAIN);
+		const isDev = appEnv === 'development';
+		const emailService = new EmailService(isDev, appName, baseUrl, resendApi, resendDomain);
 
 		for (const message of batch.messages) {
 			try {

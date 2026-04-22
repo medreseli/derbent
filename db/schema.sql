@@ -64,3 +64,11 @@ VALUES (
     1,
     1
 );
+
+-----------------------------------------------
+
+CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    is_secret BOOLEAN DEFAULT 0
+);

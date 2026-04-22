@@ -1,20 +1,71 @@
 import { AppRepository } from '../repositories/app.repository';
 import { AuditLogRepository } from '../repositories/audit-log.repository';
+import { SettingsRepository } from '../repositories/settings.repository';
 import { UserTokenVersionRepository } from '../repositories/user-token-version.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { AppRecord } from '../types/app';
+import { DerbentConfig } from '../types/config';
 import { AppError } from '../types/errors';
 import { User } from '../types/user';
 import { hashPassword } from '../utils/crypto';
 
 export class AdminService {
+	private readonly SECRET_KEYS = ['RESEND_API_KEY', 'GITHUB_CLIENT_SECRET', 'GOOGLE_CLIENT_SECRET'];
+
 	constructor(
 		private userRepo: UserRepository,
 		private auditLogRepo: AuditLogRepository,
 		private userTokenVersionRepo: UserTokenVersionRepository,
 		private appRepo: AppRepository,
+		private settingsRepo: SettingsRepository,
 		private hashIterations: number,
 	) {}
+
+	// --- SETTINGS MANAGEMENT ---
+
+	async getSettings(effectiveConfig: DerbentConfig): Promise<Record<string, string>> {
+		// Clone to avoid mutating context
+		const safeConfig = { ...effectiveConfig } as Record<string, string>;
+
+		// Mask the secrets before sending to frontend
+		for (const key of this.SECRET_KEYS) {
+			if (safeConfig[key]) {
+				safeConfig[key] = '********';
+			}
+		}
+
+		return safeConfig;
+	}
+
+	async updateSettings(updates: Record<string, any>, masterKey: string): Promise<void> {
+		let changed = false;
+
+		for (const [key, value] of Object.entries(updates)) {
+			// Ignore masked secrets sent back from the frontend
+			if (value === '********') continue;
+
+			if (value === null || value === '') {
+				await this.settingsRepo.delete(key);
+				changed = true;
+			} else if (typeof value === 'string') {
+				const isSecret = this.SECRET_KEYS.includes(key);
+				await this.settingsRepo.update(key, value, isSecret);
+				changed = true;
+			}
+		}
+
+		if (changed) {
+			// Rebuild and encrypt the KV cache instantly
+			await this.settingsRepo.buildAndCacheConfig(masterKey);
+
+			await this.auditLogRepo.log({
+				action: 'admin_update_settings',
+				details: { updatedKeys: Object.keys(updates) },
+			});
+		}
+	}
+
+	// --- USERS MANAGEMENT ---
 
 	async getUsers(page: number, limit: number, search?: string) {
 		const offset = (page - 1) * limit;
@@ -27,7 +78,6 @@ export class AdminService {
 	async getDashboardStats() {
 		const daysForTrend = 30;
 
-		// Run all queries concurrently for maximum performance
 		const [userStats, auditStats, signupsRaw, loginsRaw] = await Promise.all([
 			this.userRepo.getDashboardStats(),
 			this.auditLogRepo.getDashboardStats(),
@@ -37,7 +87,6 @@ export class AdminService {
 
 		const mfaPercentage = userStats.total > 0 ? Math.round((userStats.mfaEnabled / userStats.total) * 100) : 0;
 
-		// Utility to generate a contiguous list of the last N days (YYYY-MM-DD)
 		const dates: string[] = [];
 		const now = new Date();
 		for (let i = daysForTrend - 1; i >= 0; i--) {
@@ -46,7 +95,6 @@ export class AdminService {
 			dates.push(d.toISOString().split('T')[0]);
 		}
 
-		// Zero-fill the missing days in memory for the frontend charts
 		const signupsMap = new Map(signupsRaw.map((r) => [r.date, r.count]));
 		const signupsTrend = dates.map((date) => ({
 			date,
@@ -117,7 +165,7 @@ export class AdminService {
 
 		const phash = await hashPassword(newPassword, this.hashIterations);
 		await this.userRepo.updatePassword(userId, phash);
-		await this.userTokenVersionRepo.clearUserVersion(userId); // Instantly revokes all active sessions
+		await this.userTokenVersionRepo.clearUserVersion(userId);
 
 		await this.auditLogRepo.log({
 			action: 'admin_force_password_reset',
@@ -147,12 +195,10 @@ export class AdminService {
 		const user = await this.userRepo.findById(userId);
 		if (!user) throw new AppError('User not found', 404);
 
-		// Delete user and their logs
 		await this.auditLogRepo.deleteByUserId(userId);
 		await this.userRepo.delete(userId);
 		await this.userTokenVersionRepo.clearUserVersion(userId);
 
-		// We log the deletion without a userId since it no longer exists
 		await this.auditLogRepo.log({
 			action: 'admin_delete_user',
 			email: user.email,
@@ -165,7 +211,7 @@ export class AdminService {
 		if (!user) throw new AppError('User not found', 404);
 
 		await this.userRepo.incrementTokenVersion(userId);
-		await this.userTokenVersionRepo.clearUserVersion(userId); // Instantly drops active sessions globally
+		await this.userTokenVersionRepo.clearUserVersion(userId);
 
 		await this.auditLogRepo.log({
 			action: 'admin_revoke_sessions',
@@ -178,11 +224,10 @@ export class AdminService {
 		const user = await this.userRepo.findById(userId);
 		if (!user) throw new AppError('User not found', 404);
 
-		if (user.is_locked === (locked ? 1 : 0)) return; // No change needed
+		if (user.is_locked === (locked ? 1 : 0)) return;
 
 		await this.userRepo.setLockedStatus(userId, locked);
 
-		// If we are locking the account, immediately boot them out of active sessions
 		if (locked) {
 			await this.userRepo.incrementTokenVersion(userId);
 			await this.userTokenVersionRepo.clearUserVersion(userId);
@@ -259,7 +304,6 @@ export class AdminService {
 			throw new AppError('The core SSO app cannot be deleted.', 403);
 		}
 
-		// Prevent deletion if users are tied to this app
 		const userCount = await this.userRepo.countByApp(appId);
 		if (userCount > 0) {
 			throw new AppError(`Cannot delete app. There are ${userCount} users associated with it. Please disable logins instead.`, 400);

@@ -16,14 +16,12 @@ export async function hashPassword(password: string, iterations: number): Promis
 	const saltBase64 = bufferToBase64(salt);
 	const hashBase64 = bufferToBase64(hashBuffer);
 
-	// Format: algo:iterations:salt:hash
 	return `pbkdf2_sha256:${iterations}:${saltBase64}:${hashBase64}`;
 }
 
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
 	const parts = storedHash.split(':');
 
-	// Strict format check: algo:iterations:salt:hash
 	if (parts.length !== 4 || parts[0] !== 'pbkdf2_sha256') {
 		console.error('[Crypto] Invalid hash format or unsupported algorithm.');
 		return false;
@@ -40,7 +38,7 @@ export async function verifyPassword(password: string, storedHash: string): Prom
 		{
 			name: 'PBKDF2',
 			salt: salt,
-			iterations: iterations, // Use the iterations stored in the DB, not the Env var
+			iterations: iterations,
 			hash: 'SHA-256',
 		},
 		keyMaterial,
@@ -53,9 +51,6 @@ export async function verifyPassword(password: string, storedHash: string): Prom
 
 export function needsRehash(storedHash: string, targetIterations: number): boolean {
 	const parts = storedHash.split(':');
-
-	// If the format isn't exactly what we expect currently, we need a rehash.
-	// This covers missing algorithm prefixes, old formats, or completely different algorithms.
 	if (parts.length !== 4) return true;
 	if (parts[0] !== 'pbkdf2_sha256') return true;
 
@@ -65,7 +60,7 @@ export function needsRehash(storedHash: string, targetIterations: number): boole
 	return false;
 }
 
-function bufferToBase64(buf: ArrayBuffer | Uint8Array): string {
+export function bufferToBase64(buf: ArrayBuffer | Uint8Array): string {
 	const bytes = new Uint8Array(buf);
 	let binary = '';
 	for (let i = 0; i < bytes.byteLength; i++) {
@@ -74,11 +69,46 @@ function bufferToBase64(buf: ArrayBuffer | Uint8Array): string {
 	return btoa(binary);
 }
 
-function base64ToBuffer(b64: string): Uint8Array {
+export function base64ToBuffer(b64: string): Uint8Array {
 	const binary = atob(b64);
 	const bytes = new Uint8Array(binary.length);
 	for (let i = 0; i < binary.length; i++) {
 		bytes[i] = binary.charCodeAt(i);
 	}
 	return bytes;
+}
+
+// --- SECURE KV STORAGE CRYPTO (AES-GCM) ---
+
+async function getAESKey(secretKey: string): Promise<CryptoKey> {
+	const encoder = new TextEncoder();
+	const keyMaterial = encoder.encode(secretKey);
+	// Hash the secret to ensure it is exactly 256 bits (32 bytes) for AES-256
+	const hash = await crypto.subtle.digest('SHA-256', keyMaterial);
+	return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+export async function encryptKV(plainText: string, secretKey: string): Promise<string> {
+	const key = await getAESKey(secretKey);
+	const iv = crypto.getRandomValues(new Uint8Array(12));
+	const encodedText = new TextEncoder().encode(plainText);
+
+	const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedText);
+
+	const ivBase64 = bufferToBase64(iv);
+	const cipherBase64 = bufferToBase64(cipherBuffer);
+
+	return JSON.stringify({ iv: ivBase64, data: cipherBase64 });
+}
+
+export async function decryptKV(encryptedJson: string, secretKey: string): Promise<string> {
+	const parsed = JSON.parse(encryptedJson);
+	if (!parsed.iv || !parsed.data) throw new Error('Invalid encrypted JSON structure');
+
+	const iv = base64ToBuffer(parsed.iv);
+	const cipherData = base64ToBuffer(parsed.data);
+	const key = await getAESKey(secretKey);
+
+	const decryptedBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherData);
+	return new TextDecoder().decode(decryptedBuffer);
 }

@@ -2,7 +2,8 @@ import { jsxRenderer } from 'hono/jsx-renderer';
 import { DerbentIcon } from './helpers/icons';
 
 export const renderer = jsxRenderer(({ children }, c) => {
-	const isProd = c.env.APP_ENV === 'production';
+	const config = c.get('config');
+	const isProd = config?.APP_ENV === 'production';
 
 	// In development, Vite processes /src/app.css dynamically via the plugin.
 	// In production, we load the statically built /main.css from the public/ folder.
@@ -13,7 +14,7 @@ export const renderer = jsxRenderer(({ children }, c) => {
 			<head>
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-				<title>Derbent</title>
+				<title>{config?.APP_NAME || 'Derbent'}</title>
 				<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 				<link rel="stylesheet" href={cssPath} />
 			</head>
@@ -38,7 +39,7 @@ export const renderer = jsxRenderer(({ children }, c) => {
 							<a href="/">
 								<DerbentIcon className="size-12" />
 							</a>
-							<h1 className="text-center text-xl font-bold tracking-tight">DERBENT</h1>
+							<h1 className="text-center text-xl font-bold tracking-tight uppercase">{config?.APP_NAME || 'Derbent'}</h1>
 						</div>
 					</div>
 
