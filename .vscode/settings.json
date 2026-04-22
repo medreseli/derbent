@@ -9,7 +9,8 @@
 		".prettierrc": true,
 		"tsconfig.json": true,
 		"worker-configuration.d.ts": true,
-		"package-lock.json": true
+		"package-lock.json": true,
+		"dist": true
 	},
 	"files.associations": {
 		"wrangler.json": "jsonc",
