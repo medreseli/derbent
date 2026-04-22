@@ -17,8 +17,8 @@ export class AdminHandler {
 		const effectiveConfig = c.get('config');
 
 		try {
-			const safeConfig = await adminService.getSettings(effectiveConfig);
-			return c.json({ data: safeConfig });
+			const enrichedConfig = await adminService.getSettings(effectiveConfig);
+			return c.json({ data: enrichedConfig });
 		} catch (err) {
 			const status = err instanceof AppError ? err.status : 500;
 			const msg = err instanceof AppError ? err.message : 'Internal Server Error';

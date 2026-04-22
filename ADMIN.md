@@ -140,22 +140,67 @@ Retrieves aggregated system health, security posture metrics, and time-series tr
 
 ---
 
+### Settings Management
+
+Manage the project-wide environment variables and secrets dynamically.
+
+_Note: If `USE_DYNAMIC_CONFIG` is enabled, these values overwrite the static environment variables defined in Wrangler._
+
+#### 3.2 Get All Settings
+
+- **Route:** `GET /admin/settings`
+- **Response `200 OK`:**
+
+```json
+{
+	"data": {
+		"APP_NAME": {
+			"value": "Derbent Custom",
+			"source": "database",
+			"is_secret": false
+		},
+		"LOG_LEVEL": {
+			"value": "debug",
+			"source": "env",
+			"is_secret": false
+		},
+		"RESEND_API_KEY": {
+			"value": "********",
+			"source": "database",
+			"is_secret": true
+		}
+	}
+}
+```
+
+#### 3.3 Update Settings
+
+- **Route:** `PATCH /admin/settings`
+- **Body (JSON):** A key-value object of the settings to update.
+- **Behavior:**
+  - Sending `********` as a value will be ignored (prevents overwriting secrets with the mask).
+  - Sending an empty string `""` or `null` will delete the dynamic setting, causing Derbent to fall back to the environment variable.
+  - Updates trigger an immediate background re-encryption of the KV cache.
+- **Response `200 OK`:** `{ "success": true }`
+
+---
+
 ### Apps Management
 
 Manage the consumer applications allowed to authenticate via Derbent.
 
-#### 3.2 Get All Apps
+#### 3.4 Get All Apps
 
 - **Route:** `GET /admin/apps`
 - **Response `200 OK`:** `{ "data": AppRecord[] }`
 
-#### 3.3 Get Single App
+#### 3.5 Get Single App
 
 - **Route:** `GET /admin/apps/:id`
 - **Response `200 OK`:** `AppRecord`
 - **Response `404 Not Found`:** `{ "error": "App not found" }`
 
-#### 3.4 Create App
+#### 3.6 Create App
 
 - **Route:** `POST /admin/apps`
 - **Body (JSON):**
@@ -170,14 +215,14 @@ Manage the consumer applications allowed to authenticate via Derbent.
 - **Response `201 Created`:** `{ "success": true }`
 - **Response `400 Bad Request`:** Validation failed, or App ID already exists.
 
-#### 3.5 Update App
+#### 3.7 Update App
 
 - **Route:** `PATCH /admin/apps/:id`
 - **Body (JSON):** Any fields from the Create App payload (all optional).
 - **Response `200 OK`:** `{ "success": true, "app": AppRecord }`
 - **Response `404 Not Found`:** `{ "error": "App not found" }`
 
-#### 3.6 Delete App
+#### 3.8 Delete App
 
 - **Route:** `DELETE /admin/apps/:id`
 - **Response `200 OK`:** `{ "success": true }`
@@ -189,7 +234,7 @@ Manage the consumer applications allowed to authenticate via Derbent.
 
 ### Users Management
 
-#### 3.7 Get Users
+#### 3.9 Get Users
 
 Lists users with optional pagination and search capabilities.
 
@@ -200,7 +245,7 @@ Lists users with optional pagination and search capabilities.
   - `search` (optional) - Searches by exact `id` or partial `email` (using `LIKE %search%`).
 - **Response `200 OK`:** `PaginatedResponse<User>`
 
-#### 3.8 Get Single User
+#### 3.10 Get Single User
 
 Retrieves a specific user by their ID.
 
@@ -210,7 +255,7 @@ Retrieves a specific user by their ID.
 - **Response `200 OK`:** `User`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-#### 3.9 Update User
+#### 3.11 Update User
 
 Updates basic attributes of a user.
 
@@ -223,7 +268,7 @@ Updates basic attributes of a user.
 - **Response `400 Bad Request`:** Validation failed.
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-#### 3.10 Force Reset Password
+#### 3.12 Force Reset Password
 
 Overrides the user's current password. **Crucial:** This instantly revokes all active sessions for the user.
 
@@ -234,7 +279,7 @@ Overrides the user's current password. **Crucial:** This instantly revokes all a
 - **Response `400 Bad Request`:** Validation failed, OR `{ "error": "Cannot reset password for OAuth-only accounts." }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-#### 3.11 Disable 2FA
+#### 3.13 Disable 2FA
 
 Turns off Two-Factor Authentication for a user.
 
@@ -244,7 +289,7 @@ Turns off Two-Factor Authentication for a user.
 - **Response `400 Bad Request`:** `{ "error": "2FA is already disabled for this user." }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-#### 3.12 Delete User
+#### 3.14 Delete User
 
 Permanently deletes a user, their sessions, and **all of their associated audit logs**.
 
@@ -253,7 +298,7 @@ Permanently deletes a user, their sessions, and **all of their associated audit 
 - **Response `200 OK`:** `{ "success": true }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-#### 3.13 Revoke All Sessions
+#### 3.15 Revoke All Sessions
 
 Forces a logout on all devices for the given user by clearing their token version in KV and incrementing it in D1.
 
@@ -262,7 +307,7 @@ Forces a logout on all devices for the given user by clearing their token versio
 - **Response `200 OK`:** `{ "success": true }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-#### 3.14 Lock / Unlock Account
+#### 3.16 Lock / Unlock Account
 
 Changes the lock status of an account. **Crucial:** Locking an account will immediately boot them out of all active sessions.
 
@@ -277,7 +322,7 @@ Changes the lock status of an account. **Crucial:** Locking an account will imme
 
 ### Audit Logs
 
-#### 3.15 Get Global Audit Logs
+#### 3.17 Get Global Audit Logs
 
 Retrieves a paginated list of all system audit logs.
 
@@ -288,7 +333,7 @@ Retrieves a paginated list of all system audit logs.
   - `action` (optional) - Filter by specific action (e.g., `login_success`, `login_failed`, `admin_update_user`).
 - **Response `200 OK`:** `PaginatedResponse<AuditLogRecord>`
 
-#### 3.16 Get User Audit Logs
+#### 3.18 Get User Audit Logs
 
 Retrieves a paginated list of audit logs specifically tied to a given user ID.
 

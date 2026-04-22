@@ -23,18 +23,29 @@ export class AdminService {
 
 	// --- SETTINGS MANAGEMENT ---
 
-	async getSettings(effectiveConfig: DerbentConfig): Promise<Record<string, string>> {
-		// Clone to avoid mutating context
-		const safeConfig = { ...effectiveConfig } as Record<string, string>;
+	async getSettings(
+		effectiveConfig: DerbentConfig,
+	): Promise<Record<string, { value: string; source: 'database' | 'env'; is_secret: boolean }>> {
+		// Get all raw records from D1 to know what is actually stored there
+		const dbRecords = await this.settingsRepo.getAll();
+		const dbKeys = new Set(dbRecords.map((r) => r.key));
 
-		// Mask the secrets before sending to frontend
-		for (const key of this.SECRET_KEYS) {
-			if (safeConfig[key]) {
-				safeConfig[key] = '********';
-			}
+		const response: Record<string, { value: string; source: 'database' | 'env'; is_secret: boolean }> = {};
+
+		for (const [key, value] of Object.entries(effectiveConfig)) {
+			// Skip internal Cloudflare objects (D1, KV bindings, etc) that might be in the config object
+			if (typeof value !== 'string' && typeof value !== 'number') continue;
+
+			const isSecret = this.SECRET_KEYS.includes(key);
+
+			response[key] = {
+				value: isSecret && value ? '********' : String(value),
+				source: dbKeys.has(key) ? 'database' : 'env',
+				is_secret: isSecret,
+			};
 		}
 
-		return safeConfig;
+		return response;
 	}
 
 	async updateSettings(updates: Record<string, any>, masterKey: string): Promise<void> {
