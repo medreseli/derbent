@@ -14,5 +14,15 @@
 	"files.associations": {
 		"wrangler.json": "jsonc",
 		"*.css": "tailwindcss"
-	}
+	},
+	"files.watcherExclude": {
+		"**/node_modules/**": true,
+		"**/.git/**": true,
+		"**/.wrangler/**": true,
+		"**/.tanstack/**": true,
+		"**/dist/**": true,
+		"**/build/**": true,
+		"**/routeTree.gen.ts": true
+	},
+	"tailwindCSS.files.exclude": ["**/node_modules/**", "**/.git/**", "**/dist/**"]
 }

@@ -79,9 +79,22 @@ export interface DashboardStats {
 	};
 }
 
+export interface AppRecord {
+	id: string; // Lowercase, alphanumeric, or dashes (e.g. 'sso', 'hodan')
+	name: string;
+	description: string | null;
+	icon: string | null; // Raw SVG string
+	prod_url: string; // Must be valid URL
+	dev_url: string; // Must be valid URL
+	allow_signups: 0 | 1; // 0 = False, 1 = True
+	allow_logins: 0 | 1; // 0 = False, 1 = True
+	created_at: string; // ISO Date string
+	updated_at: string; // ISO Date string
+}
+
 export interface User {
 	id: string; // UUIDv7
-	app: string; // 'sso', 'hodan', 'namedar', etc.
+	app: string; // Foreign key mapping to AppRecord.id
 	email: string;
 	email_verified: 0 | 1; // 0 = False, 1 = True
 	phash: string; // Opaque hash or 'OAUTH:GITHUB'/'OAUTH:GOOGLE'
@@ -125,7 +138,58 @@ Retrieves aggregated system health, security posture metrics, and time-series tr
 - **Query Parameters:** None
 - **Response `200 OK`:** `DashboardStats`
 
-### 3.2 Get Users
+---
+
+### Apps Management
+
+Manage the consumer applications allowed to authenticate via Derbent.
+
+#### 3.2 Get All Apps
+
+- **Route:** `GET /admin/apps`
+- **Response `200 OK`:** `{ "data": AppRecord[] }`
+
+#### 3.3 Get Single App
+
+- **Route:** `GET /admin/apps/:id`
+- **Response `200 OK`:** `AppRecord`
+- **Response `404 Not Found`:** `{ "error": "App not found" }`
+
+#### 3.4 Create App
+
+- **Route:** `POST /admin/apps`
+- **Body (JSON):**
+  - `id` (string, required, lowercase alphanumeric + dashes only)
+  - `name` (string, required)
+  - `prod_url` (string, required, valid URL)
+  - `dev_url` (string, required, valid URL)
+  - `allow_signups` (0 or 1, required)
+  - `allow_logins` (0 or 1, required)
+  - `description` (string, optional)
+  - `icon` (string, optional, Raw SVG string)
+- **Response `201 Created`:** `{ "success": true }`
+- **Response `400 Bad Request`:** Validation failed, or App ID already exists.
+
+#### 3.5 Update App
+
+- **Route:** `PATCH /admin/apps/:id`
+- **Body (JSON):** Any fields from the Create App payload (all optional).
+- **Response `200 OK`:** `{ "success": true, "app": AppRecord }`
+- **Response `404 Not Found`:** `{ "error": "App not found" }`
+
+#### 3.6 Delete App
+
+- **Route:** `DELETE /admin/apps/:id`
+- **Response `200 OK`:** `{ "success": true }`
+- **Response `400 Bad Request`:** App has existing users associated with it (must disable logins instead).
+- **Response `403 Forbidden`:** Attempted to delete the core `sso` app.
+- **Response `404 Not Found`:** `{ "error": "App not found" }`
+
+---
+
+### Users Management
+
+#### 3.7 Get Users
 
 Lists users with optional pagination and search capabilities.
 
@@ -136,7 +200,7 @@ Lists users with optional pagination and search capabilities.
   - `search` (optional) - Searches by exact `id` or partial `email` (using `LIKE %search%`).
 - **Response `200 OK`:** `PaginatedResponse<User>`
 
-### 3.3 Get Single User
+#### 3.8 Get Single User
 
 Retrieves a specific user by their ID.
 
@@ -146,7 +210,7 @@ Retrieves a specific user by their ID.
 - **Response `200 OK`:** `User`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.4 Update User
+#### 3.9 Update User
 
 Updates basic attributes of a user.
 
@@ -159,7 +223,7 @@ Updates basic attributes of a user.
 - **Response `400 Bad Request`:** Validation failed.
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.5 Force Reset Password
+#### 3.10 Force Reset Password
 
 Overrides the user's current password. **Crucial:** This instantly revokes all active sessions for the user.
 
@@ -170,7 +234,7 @@ Overrides the user's current password. **Crucial:** This instantly revokes all a
 - **Response `400 Bad Request`:** Validation failed, OR `{ "error": "Cannot reset password for OAuth-only accounts." }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.6 Disable 2FA
+#### 3.11 Disable 2FA
 
 Turns off Two-Factor Authentication for a user.
 
@@ -180,7 +244,7 @@ Turns off Two-Factor Authentication for a user.
 - **Response `400 Bad Request`:** `{ "error": "2FA is already disabled for this user." }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.7 Delete User
+#### 3.12 Delete User
 
 Permanently deletes a user, their sessions, and **all of their associated audit logs**.
 
@@ -189,7 +253,7 @@ Permanently deletes a user, their sessions, and **all of their associated audit 
 - **Response `200 OK`:** `{ "success": true }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.8 Revoke All Sessions
+#### 3.13 Revoke All Sessions
 
 Forces a logout on all devices for the given user by clearing their token version in KV and incrementing it in D1.
 
@@ -198,7 +262,7 @@ Forces a logout on all devices for the given user by clearing their token versio
 - **Response `200 OK`:** `{ "success": true }`
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.9 Lock / Unlock Account
+#### 3.14 Lock / Unlock Account
 
 Changes the lock status of an account. **Crucial:** Locking an account will immediately boot them out of all active sessions.
 
@@ -209,7 +273,11 @@ Changes the lock status of an account. **Crucial:** Locking an account will imme
 - **Response `400 Bad Request`:** Validation failed.
 - **Response `404 Not Found`:** `{ "error": "User not found" }`
 
-### 3.10 Get Global Audit Logs
+---
+
+### Audit Logs
+
+#### 3.15 Get Global Audit Logs
 
 Retrieves a paginated list of all system audit logs.
 
@@ -220,7 +288,7 @@ Retrieves a paginated list of all system audit logs.
   - `action` (optional) - Filter by specific action (e.g., `login_success`, `login_failed`, `admin_update_user`).
 - **Response `200 OK`:** `PaginatedResponse<AuditLogRecord>`
 
-### 3.11 Get User Audit Logs
+#### 3.16 Get User Audit Logs
 
 Retrieves a paginated list of audit logs specifically tied to a given user ID.
 
