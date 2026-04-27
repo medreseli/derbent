@@ -34,7 +34,7 @@
 		"LOG_LEVEL": "warn",
 		"APP_NAME": "Derbent",
 		"BASE_URL": "https://derbent.zerdalu.com",
-		"USE_DYNAMIC_CONFIG": false,
+		"USE_DYNAMIC_CONFIG": "true",
 		"PBKDF2_ITERATIONS": "100000",
 		"AUDIT_LOG_RETENTION_DAYS": "30",
 		"COOKIE_DOMAIN": ".zerdalu.com",

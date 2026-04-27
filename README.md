@@ -196,7 +196,6 @@ Verifies the session cookie and returns the user's session data.
 {
 	"userId": "018f3a5b-7b2a-7c81-9d4f-123456789abc",
 	"email": "user@example.com",
-	"role": "user",
 	"appId": "hodan",
 	"createdAt": 1709654321000,
 	"ip": "203.0.113.42",

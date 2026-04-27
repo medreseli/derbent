@@ -6,7 +6,6 @@ export interface Session<T = Record<string, unknown>> {
 	// --- System Fields (Required & Protected) ---
 	userId: string;
 	email: string;
-	role: string;
 	appId: string;
 	createdAt: number;
 	ip: string;

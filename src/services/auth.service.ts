@@ -49,7 +49,6 @@ export class AuthService {
 		const session: Session = {
 			userId: user.id,
 			email: user.email,
-			role: 'user',
 			appId: user.app,
 			createdAt: Date.now(),
 			ip,
