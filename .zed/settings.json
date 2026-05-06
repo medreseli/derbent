@@ -1,0 +1,33 @@
+{
+	"disable_ai": true,
+	"jsx_tag_auto_close": {
+		"enabled": true,
+	},
+	"languages": {
+		"CSS": {
+			"language_servers": ["tailwindcss-language-server", "!vscode-css-language-server"],
+		},
+	},
+	"lsp": {
+		"tailwindcss-language-server": {
+			"settings": {
+				"classFunctions": ["cva", "cx"],
+				"lint": {
+					"suggestCanonicalClasses": "ignore",
+				},
+			},
+		},
+	},
+	"hidden_files": [
+		".astro",
+		".wrangler",
+		".vscode",
+		"dist",
+		"node_modules",
+		"prettier.config.js",
+		"package-lock.json",
+		".prettierignore",
+		"tsconfig.json",
+		"worker-configuration.d.ts",
+	],
+}

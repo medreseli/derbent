@@ -69,7 +69,7 @@ APP_ENV=development
 LOG_LEVEL=debug
 APP_NAME=Derbent Auth
 COOKIE_DOMAIN=localhost
-BASE_URL=http://localhost:8787
+BASE_URL=http://localhost:7777
 RESEND_API_KEY=re_your_api_key_here
 RESEND_DOMAIN=your-verified-domain.com
 GITHUB_CLIENT_ID=your_github_client_id
@@ -151,8 +151,15 @@ export async function verifyWithDerbent(c: Context, appId: string) {
 	let response = await cache.match(cacheKey);
 
 	if (!response) {
-		// The actual request to Derbent via Service Binding.
-		const fetchReq = new Request(`https://auth.internal/internal/verify?app_id=${appId}`, {
+		const isDev = c.env.APP_ENV === 'development';
+
+		// In production, we use Service Bindings via an internal-only URL.
+		// In development, we use global fetch to communicate with the local Derbent port.
+		const authUrl = isDev
+			? `http://localhost:7777/internal/verify?app_id=${appId}`
+			: `https://auth.internal/internal/verify?app_id=${appId}`;
+
+		const fetchReq = new Request(authUrl, {
 			headers: {
 				Cookie: cookie,
 				'Derbent-Client-IP': clientIp,
@@ -160,7 +167,9 @@ export async function verifyWithDerbent(c: Context, appId: string) {
 			},
 		});
 
-		response = await c.env.DERBENT_SERVICE.fetch(fetchReq);
+		response = isDev
+			? await fetch(fetchReq)
+			: await c.env.DERBENT_SERVICE.fetch(fetchReq);
 
 		if (response.ok) {
 			// Cache the response against our unique cacheKey
@@ -289,12 +298,14 @@ npm run test
 
 Derbent works well for:
 
-• SaaS apps on Cloudflare Workers  
-• Multi-subdomain applications  
-• Edge-native APIs  
-• Self-hosted authentication systems  
+• SaaS apps on Cloudflare Workers
+• Multi-subdomain applications
+• Edge-native APIs
+• Self-hosted authentication systems
 • Replacing Auth0 for Workers projects
 
-## Assets
+## Assets
 
 - Icon - https://www.svgrepo.com/svg/471884/shield-01
+
+---

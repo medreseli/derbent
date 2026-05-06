@@ -25,6 +25,7 @@
 	"preview_urls": false,
 	"routes": [
 		{
+			"zone_name": "zerdalu.com",
 			"pattern": "derbent.zerdalu.com",
 			"custom_domain": true,
 		},
