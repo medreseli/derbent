@@ -1,0 +1,59 @@
+# Derbent Auth Engine - AI Development Context
+
+This file provides context and strict guidelines for AI assistants helping with the development, debugging, or integration of **Derbent Auth Engine**.
+
+## Project Overview
+Derbent is a self-hosted, edge-native authentication worker built for the Cloudflare ecosystem. It provides stateful, session-based SSO (Single Sign-On) across subdomains without using JWTs. It acts as a "sidecar" service for other Cloudflare Workers via Service Bindings.
+
+## Tech Stack
+- **Environment:** Cloudflare Workers.
+- **Storage:**
+  - **Cloudflare KV:** Stores active sessions (stateful).
+  - **Cloudflare D1:** Stores user profiles, application metadata, and audit logs.
+- **Communication:** Service Bindings (internal communication) or global fetch (local development).
+- **Email:** Cloudflare Queues + Resend (for transactional emails).
+- **Auth Flow:** OAuth (GitHub) and Session-based login.
+
+## Architectural Rules & Development Constraints
+1. **No JWTs:** Do not suggest JWT-based solutions. Derbent uses opaque tokens stored in KV.
+2. **Stateful SSO:** Cookies are scoped to the root domain (e.g., `.example.com`) to allow cross-subdomain authentication.
+3. **Session Hijack Protection:** Every session is strictly bound to the user's `IP Address` and `User-Agent`. If these change, the session must be treated as invalid.
+4. **App Whitelisting:** Apps must be explicitly registered in `src/config/apps.ts` within `ALLOWED_APPS` and `REGISTERED_APPS`.
+5. **SSO Priority:** If an `sso` account exists for an email, app-specific accounts for that same email are blocked.
+6. **Audit Logging:** Every authentication event (login, verify, logout, admin change) must be recorded in the D1 `audit_logs` table.
+
+## Consuming App Integration Pattern
+When generating code for apps that consume Derbent (e.g., a blog or a dashboard), follow these rules:
+
+- **Service Binding:** The binding name should typically be `DERBENT_SERVICE`.
+- **Headers:** You **must** forward the client's identity. Always include:
+  - `Derbent-Client-IP`: (from `cf-connecting-ip`)
+  - `Derbent-Client-UA`: (from `user-agent`)
+- **Caching Logic:** Cloudflare Cache API ignores `Vary: Cookie`. To prevent session leaking, code must hash the cookie and use that hash as part of the cache key.
+- **Internal URL:** In production, use `https://auth.internal/internal/verify`. In development, use the local port (usually `http://localhost:7777/internal/verify`).
+
+## Internal API Reference (Service Bindings)
+
+### GET `/internal/verify`
+Validates a session.
+- **Query Params:** `app_id` (string)
+- **Required Headers:** `Cookie`, `Derbent-Client-IP`, `Derbent-Client-UA`.
+- **Response:** Returns a JSON object with `userId`, `email`, `appId`, and custom `data`.
+
+### POST `/internal/logout`
+Destroys a session in KV.
+- **Query Params:** `app_id`
+- **Required Headers:** Same as verify.
+
+## Admin API
+Privileged endpoints under `/admin/*` require an `Authorization: Bearer <DERBENT_API_KEY>` header. Use these for user management and password resets.
+
+## Database Schema (D1)
+- `users`: Core profile data.
+- `audit_logs`: Security event history.
+- `apps`: (Derived from config) Whitelisted services.
+
+## Local Development Context
+- **Port:** Defaults to `7777`.
+- **Env:** Requires `APP_ENV=development` in `.dev.vars`.
+- **Testing:** Consuming apps use global `fetch` to talk to Derbent on localhost, but switch to `c.env.DERBENT_SERVICE.fetch` in production.
